@@ -1,5 +1,5 @@
 
-PROJECT_NAME ?= pico
+export PROJECT_NAME ?= pico
 
 RUN_DIR := ${CURDIR}
 FILE_DIR := ${realpath ${dir ${lastword ${MAKEFILE_LIST}}}}
@@ -78,11 +78,11 @@ ${RUN_DIR}/pico-sdk:
 	git submodule update --init
 
 # == CMAKE rules ==
-$(BUILD_DIR)/generated/pico_base/pico: CMakeLists.txt | pico-sdk $(BUILD_DIR)
-	@cd $(BUILD_DIR) && PICO_SDK_PATH=$(CURDIR)/pico-sdk cmake .. && make -j 20 depend
+$(BUILD_DIR)/generated/pico_base/pico: ${RUN_DIR}/CMakeLists.txt | ${RUN_DIR}/pico-sdk $(BUILD_DIR)
+	@cd $(BUILD_DIR) && PICO_SDK_PATH=${RUN_DIR}/pico-sdk cmake .. && make -j 20 depend
 
-$(BIN): ${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a CMakeLists.txt | pico-sdk $(BUILD_DIR)
-	@cd $(BUILD_DIR) && PICO_SDK_PATH=$(CURDIR)/pico-sdk cmake .. && make -j 20 motor-demo
+$(BIN): ${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a ${RUN_DIR}/CMakeLists.txt | ${RUN_DIR}/pico-sdk $(BUILD_DIR)
+	@cd $(BUILD_DIR) && PICO_SDK_PATH=${RUN_DIR}/pico-sdk cmake .. && make -j 20 ${PROJECT_NAME}
 	@echo
 	@echo == Done ==
 	@echo

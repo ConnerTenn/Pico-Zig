@@ -158,7 +158,7 @@ pub fn addArmIncludes(build_config: *Build, compile_step: *Build.Step.Compile) v
 
     //Find the location of the include
     //Note: There's a sneaky newline hiding at the end of stdout
-    const arm_gcc_inc_dir = str_replace(b.allocator, cmd_result.stdout, "/bin/arm-none-eabi-gcc\n", "/arm-none-eabi/include") catch "";
+    const arm_gcc_inc_dir = str_replace(build_config.allocator, cmd_result.stdout, "/bin/arm-none-eabi-gcc\n", "/arm-none-eabi/include") catch "";
 
     const arm_includes = [_][]const u8{
         // "/nix/store/xds2q9qipa6123ycfbak5g5xpf0bxivf-gcc-arm-embedded-13.3.rel1/arm-none-eabi/include",
@@ -167,7 +167,7 @@ pub fn addArmIncludes(build_config: *Build, compile_step: *Build.Step.Compile) v
 
     inline for (arm_includes) |include| {
         std.debug.print("Adding include [{}]: {s} \n", .{ include.len, include });
-        lib.addIncludePath(.{
+        compile_step.addIncludePath(.{
             .cwd_relative = include,
         });
     }
