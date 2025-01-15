@@ -50,13 +50,12 @@ pub const csdk = @cImport({
     @cDefine("PICO_TARGET_NAME", "blink");
     @cDefine("PICO_USE_BLOCKED_RAM", "0");
 
-    // @cInclude("hardware/gpio.h");
-    @cInclude("stdio.h");
+    // @cInclude("stdio.h");
     @cInclude("pico/stdlib.h");
     @cInclude("hardware/clocks.h");
+    @cInclude("hardware/gpio.h");
     @cInclude("hardware/pwm.h");
     @cInclude("hardware/pio.h");
     // @cInclude("pico/time.h");
     @cInclude("hardware/spi.h");
-    @cInclude("duty_cycle.pio.h");
 });

@@ -64,7 +64,6 @@ ${RUN_DIR}/flake.nix:
 
 # Zig build
 ${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a: *.zig $(BUILD_DIR)/generated/pico_base/pico
-	@# zig build test && zig build -freference-trace build
 	zig build -freference-trace build
 	@echo
 

@@ -10,7 +10,17 @@ pub const rp2040_target = std.Target.Query{
     .abi = .eabi,
 };
 
-pub fn addPicoIncludes(build_config: *Build, compile_step: *Build.Step.Compile) void {
+pub fn addInclude(build_config: *Build, module: *Build.Module, include_path: []const u8) void {
+    std.debug.print("Adding include [{}]: '{s}'\n", .{ include_path.len, include_path });
+
+    if (std.fs.path.isAbsolute(include_path)) {
+        module.addIncludePath(std.Build.LazyPath{ .cwd_relative = include_path });
+    } else {
+        module.addIncludePath(build_config.path(include_path));
+    }
+}
+
+pub fn addPicoIncludes(build_config: *Build, module: *Build.Module) void {
     const includes = [_][]const u8{
         // "./pico-sdk/bazel/include",
         "./pico-sdk/lib/btstack/3rd-party/bluedroid/decoder/include",
@@ -42,7 +52,7 @@ pub fn addPicoIncludes(build_config: *Build, compile_step: *Build.Step.Compile) 
         "./pico-sdk/src/common/pico_binary_info/include",
         "./pico-sdk/src/common/pico_bit_ops_headers/include",
         "./pico-sdk/src/common/pico_divider_headers/include",
-        "./pico-sdk/src/common/pico_stdlib_headers/include",
+        "./pico-sdk/src/common/pico_stdlib_headers/include/",
         "./pico-sdk/src/common/pico_sync/include",
         "./pico-sdk/src/common/pico_time/include",
         "./pico-sdk/src/common/pico_usb_reset_interface_headers/include",
@@ -133,11 +143,11 @@ pub fn addPicoIncludes(build_config: *Build, compile_step: *Build.Step.Compile) 
     };
 
     inline for (includes) |include| {
-        compile_step.addIncludePath(build_config.path(include));
+        addInclude(build_config, module, include);
     }
 }
 
-pub fn addArmIncludes(build_config: *Build, compile_step: *Build.Step.Compile) void {
+pub fn addArmIncludes(build_config: *Build, module: *Build.Module) void {
     //Run the which command to find the real install location of arm-none-eabi-gcc
     //On Nixos, it is under a hash so it's bad practice to reference it directly
     const cmd_result = std.process.Child.run(.{
@@ -166,10 +176,7 @@ pub fn addArmIncludes(build_config: *Build, compile_step: *Build.Step.Compile) v
     };
 
     inline for (arm_includes) |include| {
-        std.debug.print("Adding include [{}]: {s} \n", .{ include.len, include });
-        compile_step.addIncludePath(.{
-            .cwd_relative = include,
-        });
+        addInclude(build_config, module, include);
     }
 }
 
