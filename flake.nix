@@ -15,22 +15,22 @@
 
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem 
-      (system:
-        let 
-          pkgs = nixpkgs.legacyPackages.${system};
-        in {
-          # Built via `nix build` and run via `nix run`
-          # Building as a package not required
+    (system:
+      let 
+        pkgs = nixpkgs.legacyPackages.${system};
+      in {
+        # Built via `nix build` and run via `nix run`
+        # Building as a package not required
 
-          # Entered with `nix develop`
-          devShells.default = pkgs.mkShell {
-            packages = with pkgs; [
-              zig
-              git
-              cmake
-              gcc-arm-embedded-13
-            ];
-          };
-        }
-      );
+        # Entered with `nix develop`
+        devShells.default = pkgs.mkShell {
+          packages = with pkgs; [
+            zig
+            git
+            cmake
+            gcc-arm-embedded-13
+          ];
+        };
+      }
+    );
 }
