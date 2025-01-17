@@ -1,12 +1,34 @@
 const std = @import("std");
 const Build = std.Build;
 
+pub const PicoTargets = enum {
+    rp2040,
+    rp2350,
+};
+
+const CpuFeature = std.Target.Cpu.Feature;
+const CpuModel = std.Target.Cpu.Model;
+const featureSet = CpuFeature.feature_set_fns(std.Target.arm.Feature).featureSet;
+
 pub const rp2040_target = std.Target.Query{
     .os_tag = .freestanding,
     .cpu_arch = .thumb,
     .cpu_model = .{
         .explicit = &std.Target.arm.cpu.cortex_m0plus,
     },
+    .abi = .eabi,
+};
+
+pub const rp2350_target = std.Target.Query{
+    .os_tag = .freestanding,
+    .cpu_arch = .thumb,
+    .cpu_model = .{
+        .explicit = &std.Target.arm.cpu.cortex_m33,
+    },
+    .cpu_features_add = featureSet(&[_]std.Target.arm.Feature{
+        .fp_armv8, //Single precision floats
+        .dsp, //DSP unit
+    }),
     .abi = .eabi,
 };
 
@@ -20,8 +42,11 @@ pub fn addInclude(build_config: *Build, module: *Build.Module, include_path: []c
     }
 }
 
-pub fn addPicoIncludes(build_config: *Build, module: *Build.Module) void {
-    const includes = [_][]const u8{
+// features: -32bit,+8msecext,-a76,-aapcs-frame-chain,-aapcs-frame-chain-leaf,-aclass,+acquire-release,-aes,-atomics-32,-avoid-movs-shop,-avoid-partial-cpsr,-bf16,-big-endian-instructions,-cde,-cdecp0,-cdecp1,-cdecp2,-cdecp3,-cdecp4,-cdecp5,-cdecp6,-cdecp7,-cheap-predicable-cpsr,-clrbhb,-crc,-crypto,-d32,+db,-dfb,-disable-postra-scheduler,-dont-widen-vmovs,-dotprod,-dsp,-execute-only,-expand-fp-mlx,-exynos,+fix-cmse-cve-2021-35465,-fix-cortex-a57-aes-1742098,-fp16,-fp16fml,-fp64,-fp-armv8,-fp-armv8d16,-fp-armv8d16sp,-fp-armv8sp,-fpao,-fpregs,-fpregs16,-fpregs64,-fullfp16,-fuse-aes,-fuse-literals,-harden-sls-blr,-harden-sls-nocomdat,-harden-sls-retbr,+v4t,+v5t,+v5te,+v6,+v6k,+v6m,+v6t2,+v7,+v7clrex,-v8,-v8.1a,-v8.1m.main,-v8.2a,-v8.3a,-v8.4a,-v8.5a,-v8.6a,-v8.7a,-v8.8a,-v8.9a,+v8m,+v8m.main,-v9.1a,-v9.2a,-v9.3a,-v9.4a,-v9a,+hwdiv,-hwdiv-arm,-i8mm,-iwmmxt,-iwmmxt2,-lob,-long-calls,+loop-align,-m3,+mclass,-mp,-muxed-units,-mve,-mve1beat,-mve2beat,-mve4beat,-mve.fp,-nacl-trap,-neon,-neon-fpmovs,-neonfp,+no-branch-predictor,-no-bti-at-return-twice,-no-movt,-no-neg-immediates,+noarm,-nonpipelined-vfp,-pacbti,-perfmon,-prefer-ishst,-prefer-vmovsr,-prof-unpr,-r4,-ras,-rclass,-read-tp-tpidrprw,-read-tp-tpidruro,-read-tp-tpidrurw,-reserve-r9,-ret-addr-stack,-sb,-sha2,-slow-fp-brcc,-slow-load-D-subreg,-slow-odd-reg,-slow-vdup32,-slow-vgetlni32,+slowfpvfmx,+slowfpvmlx,-soft-float,-splat-vfp-neon,-strict-align,-swift,+thumb2,+thumb-mode,-trustzone,-use-mipipeliner,+use-misched,-armv4,-armv4t,-armv5t,-armv5te,-armv5tej,-armv6,-armv6j,-armv6k,-armv6kz,-armv6-m,-armv6s-m,-armv6t2,-armv7-a,-armv7e-m,-armv7k,-armv7-m,-armv7-r,-armv7s,-armv7ve,-armv8.1-a,-armv8.1-m.main,-armv8.2-a,-armv8.3-a,-armv8.4-a,-armv8.5-a,-armv8.6-a,-armv8.7-a,-armv8.8-a,-armv8.9-a,-armv8-a,-armv8-m.base,+armv8-m.main,-armv8-r,-armv9.1-a,-armv9.2-a,-armv9.3-a,-armv9.4-a,-v9.5a,-armv9-a,-vfp2,-vfp2sp,-vfp3,-vfp3d16,-vfp3d16sp,-vfp3sp,-vfp4,-vfp4d16,-vfp4d16sp,-vfp4sp,-virtualization,-vldn-align,-vmlx-forwarding,-vmlx-hazards,-wide-stride-vfp,-xscale,-zcz
+// features: -32bit,+8msecext,-a76,-aapcs-frame-chain,-aapcs-frame-chain-leaf,-aclass,+acquire-release,-aes,-atomics-32,-avoid-movs-shop,-avoid-partial-cpsr,-bf16,-big-endian-instructions,-cde,-cdecp0,-cdecp1,-cdecp2,-cdecp3,-cdecp4,-cdecp5,-cdecp6,-cdecp7,-cheap-predicable-cpsr,-clrbhb,-crc,-crypto,-d32,+db,-dfb,-disable-postra-scheduler,-dont-widen-vmovs,-dotprod,-dsp,-execute-only,-expand-fp-mlx,-exynos,+fix-cmse-cve-2021-35465,-fix-cortex-a57-aes-1742098,-fp16,-fp16fml,-fp64,-fp-armv8,-fp-armv8d16,-fp-armv8d16sp,-fp-armv8sp,-fpao,-fpregs,-fpregs16,-fpregs64,-fullfp16,-fuse-aes,-fuse-literals,-harden-sls-blr,-harden-sls-nocomdat,-harden-sls-retbr,+v4t,+v5t,+v5te,+v6,+v6k,+v6m,+v6t2,+v7,+v7clrex,-v8,-v8.1a,-v8.1m.main,-v8.2a,-v8.3a,-v8.4a,-v8.5a,-v8.6a,-v8.7a,-v8.8a,-v8.9a,+v8m,+v8m.main,-v9.1a,-v9.2a,-v9.3a,-v9.4a,-v9a,+hwdiv,-hwdiv-arm,-i8mm,-iwmmxt,-iwmmxt2,-lob,-long-calls,+loop-align,-m3,+mclass,-mp,-muxed-units,-mve,-mve1beat,-mve2beat,-mve4beat,-mve.fp,-nacl-trap,-neon,-neon-fpmovs,-neonfp,+no-branch-predictor,-no-bti-at-return-twice,-no-movt,-no-neg-immediates,+noarm,-nonpipelined-vfp,-pacbti,-perfmon,-prefer-ishst,-prefer-vmovsr,-prof-unpr,-r4,-ras,-rclass,-read-tp-tpidrprw,-read-tp-tpidruro,-read-tp-tpidrurw,-reserve-r9,-ret-addr-stack,-sb,-sha2,-slow-fp-brcc,-slow-load-D-subreg,-slow-odd-reg,-slow-vdup32,-slow-vgetlni32,+slowfpvfmx,+slowfpvmlx,-soft-float,-splat-vfp-neon,-strict-align,-swift,+thumb2,+thumb-mode,-trustzone,-use-mipipeliner,+use-misched,-armv4,-armv4t,-armv5t,-armv5te,-armv5tej,-armv6,-armv6j,-armv6k,-armv6kz,-armv6-m,-armv6s-m,-armv6t2,-armv7-a,-armv7e-m,-armv7k,-armv7-m,-armv7-r,-armv7s,-armv7ve,-armv8.1-a,-armv8.1-m.main,-armv8.2-a,-armv8.3-a,-armv8.4-a,-armv8.5-a,-armv8.6-a,-armv8.7-a,-armv8.8-a,-armv8.9-a,-armv8-a,-armv8-m.base,+armv8-m.main,-armv8-r,-armv9.1-a,-armv9.2-a,-armv9.3-a,-armv9.4-a,-v9.5a,-armv9-a,-vfp2,-vfp2sp,-vfp3,-vfp3d16,-vfp3d16sp,-vfp3sp,-vfp4,-vfp4d16,-vfp4d16sp,-vfp4sp,-virtualization,-vldn-align,-vmlx-forwarding,-vmlx-hazards,-wide-stride-vfp,-xscale,-zcz
+
+pub fn addPicoIncludes(build_config: *Build, module: *Build.Module, target: PicoTargets) void {
+    const common_includes = [_][]const u8{
         // "./pico-sdk/bazel/include",
         "./pico-sdk/lib/btstack/3rd-party/bluedroid/decoder/include",
         "./pico-sdk/lib/btstack/3rd-party/bluedroid/encoder/include",
@@ -57,14 +82,6 @@ pub fn addPicoIncludes(build_config: *Build, module: *Build.Module) void {
         "./pico-sdk/src/common/pico_time/include",
         "./pico-sdk/src/common/pico_usb_reset_interface_headers/include",
         "./pico-sdk/src/common/pico_util/include",
-        "./pico-sdk/src/rp2040/boot_stage2/include",
-        "./pico-sdk/src/rp2040/hardware_regs/include",
-        "./pico-sdk/src/rp2040/hardware_structs/include",
-        "./pico-sdk/src/rp2040/pico_platform/include",
-        // "./pico-sdk/src/rp2350/boot_stage2/include",
-        // "./pico-sdk/src/rp2350/hardware_regs/include",
-        // "./pico-sdk/src/rp2350/hardware_structs/include",
-        // "./pico-sdk/src/rp2350/pico_platform/include",
         "./pico-sdk/src/rp2_common/cmsis/include",
         "./pico-sdk/src/rp2_common/hardware_adc/include",
         "./pico-sdk/src/rp2_common/hardware_base/include",
@@ -141,6 +158,23 @@ pub fn addPicoIncludes(build_config: *Build, module: *Build.Module) void {
         "./build/generated/pico_base",
         "./build",
     };
+
+    const target_includes = switch (target) {
+        .rp2040 => [_][]const u8{
+            "./pico-sdk/src/rp2040/boot_stage2/include",
+            "./pico-sdk/src/rp2040/hardware_regs/include",
+            "./pico-sdk/src/rp2040/hardware_structs/include",
+            "./pico-sdk/src/rp2040/pico_platform/include",
+        },
+        .rp2350 => [_][]const u8{
+            "./pico-sdk/src/rp2350/boot_stage2/include",
+            "./pico-sdk/src/rp2350/hardware_regs/include",
+            "./pico-sdk/src/rp2350/hardware_structs/include",
+            "./pico-sdk/src/rp2350/pico_platform/include",
+        },
+    };
+
+    const includes = common_includes ++ target_includes;
 
     inline for (includes) |include| {
         addInclude(build_config, module, include);
