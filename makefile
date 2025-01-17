@@ -40,6 +40,7 @@ help:
 	@echo
 
 env: ${RUN_DIR}/flake.nix
+	cd ${FILE_DIR}/; \
 	nix develop -c $$SHELL
 
 .PHONY:build
