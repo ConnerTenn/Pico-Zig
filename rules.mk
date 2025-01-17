@@ -44,7 +44,7 @@ env: ${RUN_DIR}/flake.nix
 	nix develop -c $$SHELL
 
 .PHONY:build
-build: $(BIN) ${BUILD_DIR}/disassembly.s
+build: $(BIN)
 
 lsblk:
 	watch -n 0 lsblk -T -o NAME,SIZE,MOUNTPOINTS,LABEL
@@ -109,8 +109,5 @@ $(BIN): ${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a ${RUN_DIR}/CMakeLists.txt | 
 	@echo == Done ==
 	@echo
 
-# Disassembly
-${BUILD_DIR}/disassembly.s:
-	arm-none-eabi-objdump -D ${BUILD_DIR}/${PROJECT_NAME}.elf > $@
 
 
