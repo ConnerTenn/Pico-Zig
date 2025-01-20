@@ -8,6 +8,8 @@ pub const Pin = enum(u5) {
     const Self = @This();
     _,
 
+    pub const Count = u5;
+
     pub fn create(pin: anytype) Self {
         return @enumFromInt(pin);
     }
