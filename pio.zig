@@ -7,7 +7,7 @@ pub const Pio = struct {
     const DefaultConfigFn = fn (initial_pc: c_uint) callconv(.C) csdk.pio_sm_config;
 
     program: *const csdk.pio_program_t,
-    default_config_fn: DefaultConfigFn,
+    default_config_fn: *const DefaultConfigFn,
 
     pio_obj: csdk.PIO,
     state_machine: c_uint,
@@ -16,11 +16,11 @@ pub const Pio = struct {
     gpio_base: pico.gpio.Pin,
     gpio_count: pico.gpio.Pin.Count,
 
-    pub fn create(program: *const csdk.pio_program_t, default_config_fn: DefaultConfigFn, gpio_base: pico.gpio.Pin, gpio_count: pico.gpio.Pin.Count) Self {
+    pub fn create(program: *const csdk.pio_program_t, default_config_fn: *const DefaultConfigFn, gpio_base: pico.gpio.Pin, gpio_count: pico.gpio.Pin.Count) Self {
         var state_machine: c_uint = undefined;
         var pio_obj: csdk.PIO = undefined;
         var initial_pc: c_uint = undefined;
-        _ = csdk.pio_claim_free_sm_and_add_program_for_gpio_range(program, &pio_obj, &state_machine, &initial_pc, gpio_base, gpio_count, true);
+        _ = csdk.pio_claim_free_sm_and_add_program_for_gpio_range(program, &pio_obj, &state_machine, &initial_pc, gpio_base.toSdkPin(), gpio_count, true);
 
         const self = Self{
             .program = program,
@@ -36,7 +36,7 @@ pub const Pio = struct {
     }
 
     pub fn setConsecutivePinDirs(self: *Self, gpio_base: pico.gpio.Pin, gpio_count: pico.gpio.Pin.Count, is_out: bool) void {
-        csdk.pio_sm_set_consecutive_pindirs(self.pio_obj, self.state_machine, gpio_base.toSdkPin(), gpio_count, is_out);
+        _ = csdk.pio_sm_set_consecutive_pindirs(self.pio_obj, self.state_machine, gpio_base.toSdkPin(), gpio_count, is_out);
     }
 
     pub fn getDefaultConfig(self: *Self) PioConfig {
@@ -83,6 +83,6 @@ pub const PioConfig = struct {
     }
 
     pub fn setJmpPin(self: *Self, gpio_num: pico.gpio.Pin) void {
-        csdk.sm_config_set_jmp_pin(&self.pio_config, gpio_num);
+        csdk.sm_config_set_jmp_pin(&self.pio_config, gpio_num.toSdkPin());
     }
 };
