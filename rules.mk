@@ -1,6 +1,7 @@
 
 export PROJECT_NAME ?= pico
 PICO_TARGET ?= rp2040
+EXTRA_LIB_DEPENDENCIES ?= 
 
 
 RUN_DIR := ${CURDIR}
@@ -85,7 +86,7 @@ ${RUN_DIR}/flake.nix:
 	cp ${FILE_DIR}/flake.nix ${RUN_DIR}
 
 # Zig build
-${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a: *.zig $(BUILD_DIR)/generated/pico_base/pico
+${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a: *.zig $(BUILD_DIR)/generated/pico_base/pico ${EXTRA_LIB_DEPENDENCIES}
 	@#zig build -freference-trace --verbose-llvm-cpu-features build
 	zig build -freference-trace build
 	@echo
