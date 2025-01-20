@@ -35,8 +35,8 @@ pub const Pio = struct {
         return self;
     }
 
-    pub fn setConsecutivePinDirs(self: *Self, gpio_base: pico.GpioNum, gpio_count: u8, is_out: bool) void {
-        csdk.pio_sm_set_consecutive_pindirs(self.pio_obj, self.state_machine, gpio_base, gpio_count, is_out);
+    pub fn setConsecutivePinDirs(self: *Self, gpio_base: pico.Gpio, gpio_count: u8, is_out: bool) void {
+        csdk.pio_sm_set_consecutive_pindirs(self.pio_obj, self.state_machine, gpio_base.toInt(c_uint), gpio_count, is_out);
     }
 
     pub fn getDefaultConfig(self: *Self) PioConfig {
@@ -65,24 +65,24 @@ pub const PioConfig = struct {
         };
     }
 
-    pub fn setOutPins(self: *Self, gpio_base: pico.GpioNum, gpio_count: u8) void {
-        csdk.sm_config_set_out_pins(&self.pio_config, gpio_base, gpio_count);
+    pub fn setOutPins(self: *Self, gpio_base: pico.Gpio, gpio_count: u8) void {
+        csdk.sm_config_set_out_pins(&self.pio_config, gpio_base.toInt(c_uint), gpio_count);
     }
 
-    pub fn setInPins(self: *Self, gpio_base: pico.GpioNum, gpio_count: u8) void {
-        csdk.sm_config_set_in_pin_base(&self.pio_config, gpio_base);
+    pub fn setInPins(self: *Self, gpio_base: pico.Gpio, gpio_count: u8) void {
+        csdk.sm_config_set_in_pin_base(&self.pio_config, gpio_base.toInt(c_uint));
         csdk.sm_config_set_in_pin_count(&self.pio_config, gpio_count);
     }
 
-    pub fn setSetPins(self: *Self, gpio_base: pico.GpioNum, gpio_count: u8) void {
-        csdk.sm_config_set_set_pins(&self.pio_config, gpio_base, gpio_count);
+    pub fn setSetPins(self: *Self, gpio_base: pico.Gpio, gpio_count: u8) void {
+        csdk.sm_config_set_set_pins(&self.pio_config, gpio_base.toInt(c_uint), gpio_count);
     }
 
-    pub fn setSidesetPins(self: *Self, gpio_base: pico.GpioNum) void {
-        csdk.sm_config_set_sideset_pins(&self.pio_config, gpio_base);
+    pub fn setSidesetPins(self: *Self, gpio_base: pico.Gpio) void {
+        csdk.sm_config_set_sideset_pins(&self.pio_config, gpio_base.toInt(c_uint));
     }
 
-    pub fn setJmpPin(self: *Self, gpio_num: pico.GpioNum) void {
+    pub fn setJmpPin(self: *Self, gpio_num: pico.Gpio) void {
         csdk.sm_config_set_jmp_pin(&self.pio_config, gpio_num);
     }
 };
