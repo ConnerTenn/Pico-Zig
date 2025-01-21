@@ -13,10 +13,14 @@ MNT_DIR := /mnt
 
 ifeq (${PICO_TARGET}, rp2040)
 PICO_DEV := /dev/disk/by-label/RPI-RP2
+PICO_BOARD := pico
+PICO_PLATFORM := rp2040
 
 else
 ifeq (${PICO_TARGET}, rp2350)
 PICO_DEV := /dev/disk/by-label/RP2350
+PICO_BOARD := pico2
+PICO_PLATFORM := rp2350
 
 else
 $(error "Invalid pico target: ${PICO_TARGET}")
@@ -102,10 +106,10 @@ ${RUN_DIR}/pico-sdk:
 
 # CMAKE rules
 $(BUILD_DIR)/generated/pico_base/pico: ${RUN_DIR}/CMakeLists.txt | ${RUN_DIR}/pico-sdk $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake .. -DPICO_SDK_PATH=${RUN_DIR}/pico-sdk -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350 && make -j 20 depend
+	cd $(BUILD_DIR) && cmake .. -DPICO_SDK_PATH=${RUN_DIR}/pico-sdk -DPICO_BOARD=${PICO_BOARD} -DPICO_PLATFORM=${PICO_PLATFORM} && make -j 20 depend
 
 $(BIN): ${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a ${RUN_DIR}/CMakeLists.txt | ${RUN_DIR}/pico-sdk $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake .. -DPICO_SDK_PATH=${RUN_DIR}/pico-sdk -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350 && make -j 20 ${PROJECT_NAME}
+	cd $(BUILD_DIR) && cmake .. -DPICO_SDK_PATH=${RUN_DIR}/pico-sdk -DPICO_BOARD=${PICO_BOARD} -DPICO_PLATFORM=${PICO_PLATFORM} && make -j 20 ${PROJECT_NAME}
 	@echo
 	@echo == Done ==
 	@echo
