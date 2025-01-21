@@ -6,6 +6,10 @@ pub const Pio = struct {
 
     const DefaultConfigFn = fn (initial_pc: c_uint) callconv(.C) csdk.pio_sm_config;
 
+    pub const Error = error{
+        FailedToClaimStateMachine,
+    };
+
     program: *const csdk.pio_program_t,
     default_config_fn: *const DefaultConfigFn,
 
@@ -16,11 +20,15 @@ pub const Pio = struct {
     gpio_base: pico.gpio.Pin,
     gpio_count: pico.gpio.Pin.Count,
 
-    pub fn create(program: *const csdk.pio_program_t, default_config_fn: *const DefaultConfigFn, gpio_base: pico.gpio.Pin, gpio_count: pico.gpio.Pin.Count) Self {
+    pub fn create(program: *const csdk.pio_program_t, default_config_fn: *const DefaultConfigFn, gpio_base: pico.gpio.Pin, gpio_count: pico.gpio.Pin.Count) Error!Self {
         var state_machine: c_uint = undefined;
         var pio_obj: csdk.PIO = undefined;
         var initial_pc: c_uint = undefined;
-        _ = csdk.pio_claim_free_sm_and_add_program_for_gpio_range(program, &pio_obj, &state_machine, &initial_pc, gpio_base.toSdkPin(), gpio_count, true);
+        const success = csdk.pio_claim_free_sm_and_add_program_for_gpio_range(program, &pio_obj, &state_machine, &initial_pc, gpio_base.toSdkPin(), gpio_count, false);
+
+        if (!success) {
+            return error.FailedToClaimStateMachine;
+        }
 
         const self = Self{
             .program = program,
