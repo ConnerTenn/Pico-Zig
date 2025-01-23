@@ -24,7 +24,27 @@ pub const Pio = struct {
         var state_machine: c_uint = undefined;
         var pio_obj: csdk.PIO = undefined;
         var initial_pc: c_uint = undefined;
+
         const success = csdk.pio_claim_free_sm_and_add_program_for_gpio_range(program, &pio_obj, &state_machine, &initial_pc, gpio_base.toSdkPin(), gpio_count, false);
+
+        //Configure the GPIO function of the pins
+        for (gpio_base.toSdkPin()..gpio_count) |gpio_pin| {
+            switch (pio_obj) {
+                csdk.pio0_hw => {
+                    csdk.gpio_set_function(gpio_pin, csdk.GPIO_FUNC_PIO0);
+                },
+                csdk.pio1_hw => {
+                    csdk.gpio_set_function(gpio_pin, csdk.GPIO_FUNC_PIO1);
+                },
+                csdk.pio2_hw => {
+                    csdk.gpio_set_function(gpio_pin, csdk.GPIO_FUNC_PIO2);
+                },
+                else => {
+                    pico.stdio.print("Error: Unknown PIO {*}\n", .{pio_obj});
+                    unreachable;
+                },
+            }
+        }
 
         if (!success) {
             return error.FailedToClaimStateMachine;
