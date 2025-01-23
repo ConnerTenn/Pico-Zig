@@ -8,6 +8,7 @@ pub const Pio = struct {
 
     pub const Error = error{
         FailedToClaimStateMachine,
+        FoundUnknownPIO,
     };
 
     program: *const csdk.pio_program_t,
@@ -28,7 +29,7 @@ pub const Pio = struct {
         const success = csdk.pio_claim_free_sm_and_add_program_for_gpio_range(program, &pio_obj, &state_machine, &initial_pc, gpio_base.toSdkPin(), gpio_count, false);
 
         //Configure the GPIO function of the pins
-        for (gpio_base.toSdkPin()..gpio_count) |gpio_pin| {
+        for (gpio_base.toSdkPin()..gpio_base.toSdkPin() + gpio_count) |gpio_pin| {
             switch (pio_obj) {
                 csdk.pio0_hw => {
                     csdk.gpio_set_function(gpio_pin, csdk.GPIO_FUNC_PIO0);
@@ -41,7 +42,7 @@ pub const Pio = struct {
                 },
                 else => {
                     pico.stdio.print("Error: Unknown PIO {*}\n", .{pio_obj});
-                    unreachable;
+                    return error.FoundUnknownPIO;
                 },
             }
         }
