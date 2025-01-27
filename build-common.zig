@@ -32,6 +32,16 @@ pub const rp2350_target = std.Target.Query{
     .abi = .eabi,
 };
 
+pub const Options = struct {
+    target: PicoTargets,
+};
+
+pub fn configureOptions(build_config: *Build, module: *Build.Module, options: Options) void {
+    const config_options = build_config.addOptions();
+    config_options.addOption(PicoTargets, "target", options.target);
+    module.addOptions("config", config_options);
+}
+
 pub fn addInclude(build_config: *Build, module: *Build.Module, include_path: []const u8) void {
     std.debug.print("Adding include [{}]: '{s}'\n", .{ include_path.len, include_path });
 
