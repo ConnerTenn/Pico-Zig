@@ -6,7 +6,7 @@ const csdk = pico.csdk;
 
 pub const PwmSlice = struct {
     const Self = @This();
-    const SliceNum = u8;
+    pub const SliceNum = u8;
 
     slice_num: SliceNum,
     counter_wrap: u16,
