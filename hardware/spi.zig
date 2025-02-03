@@ -4,44 +4,46 @@ const pico = @import("../pico.zig");
 const csdk = pico.csdk;
 const stdio = pico.stdio;
 const hardware = pico.hardware;
+const gpio = hardware.gpio;
 
 pub const SPI = struct {
     const Self = @This();
 
-    sck_pin: c_uint,
-    tx_pin: c_uint,
-    rx_pin: c_uint,
-    cs_pin: c_uint,
+    sck_pin: gpio.Pin,
+    tx_pin: gpio.Pin,
+    rx_pin: gpio.Pin,
+    cs_pin: gpio.Gpio,
     hardware_spi: ?*csdk.spi_inst_t = @ptrCast(csdk.spi0_hw),
 
-    pub fn create(sck_pin: c_uint, tx_pin: c_uint, rx_pin: c_uint, cs_pin: c_uint, spi_hw: [*c]csdk.spi_hw_t) Self {
+    pub fn create(sck_pin: gpio.Pin, tx_pin: gpio.Pin, rx_pin: gpio.Pin, cs_pin: gpio.Pin, spi_hw: [*c]csdk.spi_hw_t) Self {
         return Self{
             .sck_pin = sck_pin,
             .tx_pin = tx_pin,
             .rx_pin = rx_pin,
-            .cs_pin = cs_pin,
+            .cs_pin = gpio.Gpio.create(cs_pin),
             .hardware_spi = @ptrCast(spi_hw),
         };
     }
 
     pub fn init(self: Self) void {
-        csdk.gpio_init(self.cs_pin);
-        csdk.gpio_put(self.cs_pin, csdk.GPIO_HIGH);
-        csdk.gpio_set_dir(self.cs_pin, csdk.GPIO_OUT);
+        self.cs_pin.init(gpio.Gpio.Config{
+            .direction = .out,
+        });
+        self.cs_pin.put(false);
 
         const baudrate = csdk.spi_init(self.hardware_spi, 5 * 1000 * 1000); //5MHz.
         stdio.print("SPI baudrate:{}\n", .{baudrate});
-        csdk.gpio_set_function(self.sck_pin, csdk.GPIO_FUNC_SPI);
-        csdk.gpio_set_function(self.tx_pin, csdk.GPIO_FUNC_SPI);
-        csdk.gpio_set_function(self.rx_pin, csdk.GPIO_FUNC_SPI);
+        csdk.gpio_set_function(self.sck_pin.toSdkPin(), csdk.GPIO_FUNC_SPI);
+        csdk.gpio_set_function(self.tx_pin.toSdkPin(), csdk.GPIO_FUNC_SPI);
+        csdk.gpio_set_function(self.rx_pin.toSdkPin(), csdk.GPIO_FUNC_SPI);
     }
 
     pub inline fn csSelect(self: Self) void {
-        csdk.gpio_put(self.cs_pin, csdk.GPIO_LOW);
+        self.cs_pin.put(false);
     }
 
     pub inline fn csDeselect(self: Self) void {
-        csdk.gpio_put(self.cs_pin, csdk.GPIO_HIGH);
+        self.cs_pin.put(true);
     }
 
     pub fn readReg(self: Self, T: type) T {
