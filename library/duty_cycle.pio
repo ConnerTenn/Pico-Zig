@@ -1,0 +1,46 @@
+
+.program high_cycle
+.pio_version RP2350
+
+setup:
+    set x, 0
+
+loop:
+; Test the state of PIN
+    jmp PIN pin_high
+
+pin_low:
+    jmp !x, setup ;Only push if x is non-zero
+    mov isr, x
+    push noblock
+    jmp setup
+
+pin_high:
+    ; Jump is the only instruction that provides a math operation
+    ; Always return to loop regardless of the condition result
+    jmp x--, loop
+    jmp loop
+
+
+.program low_cycle
+
+setup:
+    set x, 0
+
+loop:
+; Test the state of PIN
+    jmp PIN pin_high
+
+pin_low:
+    ; Jump is the only instruction that provides a math operation
+    ; Always return to loop regardless of the condition result
+    jmp x--, loop
+    jmp loop
+
+pin_high:
+    jmp !x, setup ;Only push if x is non-zero
+    mov isr, x
+    push noblock
+    jmp setup
+
+
