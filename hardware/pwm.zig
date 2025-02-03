@@ -1,8 +1,10 @@
 const std = @import("std");
 const math = std.math;
 
-const pico = @import("pico.zig");
+const pico = @import("../pico.zig");
 const csdk = pico.csdk;
+
+const hardware = pico.hardware;
 
 pub const PwmSlice = struct {
     const Self = @This();
@@ -20,12 +22,12 @@ pub const PwmSlice = struct {
         return self;
     }
 
-    pub fn createFromGpio(gpio_num: pico.GpioNum, counter_wrap: ?u16) Self {
+    pub fn createFromGpio(gpio_num: hardware.gpio.Pin, counter_wrap: ?u16) Self {
         const slice_num = gpioToSliceNum(gpio_num);
         return create(slice_num, counter_wrap);
     }
 
-    pub inline fn gpioToSliceNum(gpio_num: pico.GpioNum) SliceNum {
+    pub inline fn gpioToSliceNum(gpio_num: hardware.gpio.Pin) SliceNum {
         return csdk.pwm_gpio_to_slice_num(gpio_num);
     }
 
