@@ -26,7 +26,7 @@ pub const Motor = struct {
     driver: PwmDriver,
     windings_per_rotation: u8,
 
-    sensor: library.sensor.Sensor,
+    sensor: AngleSensor,
 
     calibration_data: [num_calibration_samples]f32 = .{0} ** num_calibration_samples,
 
@@ -38,7 +38,7 @@ pub const Motor = struct {
 
     last_time_us: csdk.absolute_time_t = 0,
 
-    pub fn create(u_axis_slice: hardware.pwm.PwmSlice.SliceNum, v_axis_slice: hardware.pwm.PwmSlice.SliceNum, w_axis_slice: hardware.pwm.PwmSlice.SliceNum, windings_per_rotation: u8, sensor: library.sensor.Sensor, pid: library.pid.PIDcontrol) Self {
+    pub fn create(u_axis_slice: hardware.pwm.PwmSlice.SliceNum, v_axis_slice: hardware.pwm.PwmSlice.SliceNum, w_axis_slice: hardware.pwm.PwmSlice.SliceNum, windings_per_rotation: u8, sensor: AngleSensor, pid: library.pid.PIDcontrol) Self {
         return Self{
             .driver = PwmDriver.create(u_axis_slice, v_axis_slice, w_axis_slice),
             .windings_per_rotation = windings_per_rotation,
@@ -238,5 +238,15 @@ pub const PwmDriver = struct {
         const voltages = foc.getPhaseVoltage(direct_torque, tangent_torque, angle);
         // stdio.print("{}", .{voltages});
         self.setPwmFromVoltages(voltages);
+    }
+};
+
+pub const AngleSensor = struct {
+    const Self = @This();
+    ctx: *anyopaque,
+    getAngleFn: *const fn (ctx: *anyopaque) f32,
+
+    pub fn getAngle(self: Self) f32 {
+        return self.getAngleFn(self.ctx);
     }
 };

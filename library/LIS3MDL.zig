@@ -7,16 +7,6 @@ const csdk = pico.csdk;
 const stdio = pico.stdio;
 const hardware = pico.hardware;
 
-pub const Sensor = struct {
-    const Self = @This();
-    ctx: *anyopaque,
-    getAngleFn: *const fn (ctx: *anyopaque) f32,
-
-    pub fn getAngle(self: Self) f32 {
-        return self.getAngleFn(self.ctx);
-    }
-};
-
 pub const LIS3MDL = struct {
     const Self = @This();
 
@@ -276,18 +266,6 @@ pub const LIS3MDL = struct {
 
             else => unreachable,
         };
-    }
-
-    pub fn getSensor(self: *Self) Sensor {
-        return Sensor{
-            .ctx = self,
-            .getAngleFn = _getAngle,
-        };
-    }
-
-    fn _getAngle(ctx: *anyopaque) f32 {
-        const self: *Self = @alignCast(@ptrCast(ctx));
-        return self.getAngle();
     }
 };
 
