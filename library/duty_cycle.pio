@@ -1,6 +1,5 @@
 
 .program high_cycle
-.pio_version RP2350
 
 setup:
     set x, 0

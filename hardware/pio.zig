@@ -83,6 +83,22 @@ pub const Pio = struct {
     pub fn enable(self: *Self) void {
         csdk.pio_sm_set_enabled(self.pio_obj, self.state_machine, true);
     }
+
+    pub fn putBlocking(self: *Self, data: u32) void {
+        csdk.pio_sm_put_blocking(self.pio_obj, self.state_machine, data);
+    }
+
+    pub fn putNonBlocking(self: *Self, data: u32) void {
+        csdk.pio_sm_put(self.pio_obj, self.state_machine, data);
+    }
+
+    pub fn getBlocking(self: *Self, data: u32) u32 {
+        return csdk.pio_sm_get_blocking(self.pio_obj, self.state_machine);
+    }
+
+    pub fn getNonBlocking(self: *Self, data: u32) u32 {
+        return csdk.pio_sm_get(self.pio_obj, self.state_machine);
+    }
 };
 
 pub const PioConfig = struct {
@@ -115,5 +131,23 @@ pub const PioConfig = struct {
 
     pub fn setJmpPin(self: *Self, gpio_num: hardware.gpio.Pin) void {
         csdk.sm_config_set_jmp_pin(&self.pio_config, gpio_num.toSdkPin());
+    }
+
+    pub fn setOutShift(self: *Self, shift_right: bool, autopull: bool, pull_threshold: u32) void {
+        csdk.sm_config_set_out_shift(&self.pio_config, shift_right, autopull, pull_threshold);
+    }
+
+    pub fn setClcokDiv(self : *Self, dif: f32) {
+        csdk.sm_config_set_clkdiv(&self.pio_config, div);
+    }
+
+    const FifoConfig = enum(c_uint) {
+        none = csdk.PIO_FIFO_JOIN_NONE,
+        join_tx = csdk.PIO_FIFO_JOIN_TX,
+        join_rx = csdk.PIO_FIFO_JOIN_RX,
+    };
+
+    pub fn setFifoJoin(self: *Self, config: FifoConfig) void {
+        csdk.sm_config_set_fifo_join(&self.pio_config, config);
     }
 };
