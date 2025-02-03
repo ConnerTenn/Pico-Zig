@@ -111,7 +111,7 @@ pub const Motor = struct {
 
         //Get the compesated angle using the calibration data
         var compensated_angle = raw_angle - self.calibration_data[sample_idx];
-        compensated_angle = pico.math.mod(f32, compensated_angle, tau, .regular);
+        compensated_angle = pico.math.mod(f32, compensated_angle, tau, .truncated);
         // stdio.print("{d: >3}:{d: >6.3}  ", .{ sample_idx, self.calibration_data[sample_idx] });
         // stdio.print("{d: >6.3} -> {d: >6.3}  ", .{ raw_angle, compensated_angle });
 
