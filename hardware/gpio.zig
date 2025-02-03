@@ -1,4 +1,4 @@
-const pico = @import("pico.zig");
+const pico = @import("../pico.zig");
 const csdk = pico.csdk;
 
 pub const default_led_pin: Pin = Pin.create(csdk.PICO_DEFAULT_LED_PIN);

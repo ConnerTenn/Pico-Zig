@@ -1,7 +1,7 @@
 const std = @import("std");
 const math = std.math;
 
-const pico = @import("pico.zig");
+const pico = @import("../pico.zig");
 const csdk = pico.csdk;
 
 pub const PwmSlice = struct {

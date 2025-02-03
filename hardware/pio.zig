@@ -1,4 +1,4 @@
-const pico = @import("pico.zig");
+const pico = @import("../pico.zig");
 const csdk = pico.csdk;
 
 pub const Pio = struct {
