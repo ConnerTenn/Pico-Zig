@@ -63,7 +63,7 @@ pub const Pixel = packed union {
         green: u8, //MSB
     },
 
-    pub fn create(white: u8, blue: u8, red: u8, green: u8) Self {
+    pub fn create(red: u8, blue: u8, green: u8, white: u8) Self {
         return Self{
             .rgbw = .{
                 .white = white,
@@ -72,5 +72,14 @@ pub const Pixel = packed union {
                 .green = green,
             },
         };
+    }
+
+    pub fn fromRGB(rgb: pico.library.colour.RGB, white: f32) Self {
+        return create(
+            @intFromFloat(rgb.red * 255.0),
+            @intFromFloat(rgb.green * 255.0),
+            @intFromFloat(rgb.blue * 255.0),
+            @intFromFloat(white * 255.0),
+        );
     }
 };
