@@ -4,15 +4,28 @@ const csdk = pico.csdk;
 pub const Dma = struct {
     const Self = @This();
 
-    channel: c_int,
+    pub const Error = error{
+        FailedToClaimDmaChannel,
+    };
+
+    channel: c_uint,
     config: DmaConfig,
 
-    pub fn create() Self {
-        const dma_channel = csdk.dma_claim_unused_channel(true);
+    pub fn create() Error!Self {
+        const found_channel = csdk.dma_claim_unused_channel(true);
+        if (found_channel == -1) {
+            return error.FailedToClaimDmaChannel;
+        }
+
+        const dma_channel: c_uint = @intCast(found_channel);
+
+        pico.stdio.print("Found free dma channel: {}\n", .{dma_channel});
 
         return Self{
             .channel = dma_channel,
-            .config = csdk.dma_channel_get_default_config(dma_channel),
+            .config = DmaConfig{
+                .config = csdk.dma_channel_get_default_config(dma_channel),
+            },
         };
     }
 
@@ -20,11 +33,11 @@ pub const Dma = struct {
         csdk.dma_channel_set_config(self.channel, &self.config, trigger);
     }
 
-    pub fn setReadAddr(self: *Self, read_addr: *const volatile anyopaque, trigger: bool) void {
+    pub fn setReadAddr(self: *Self, read_addr: ?*const volatile anyopaque, trigger: bool) void {
         csdk.dma_channel_set_read_addr(self.channel, read_addr, trigger);
     }
 
-    pub fn setWriteAddr(self: *Self, write_addr: *const volatile anyopaque, trigger: bool) void {
+    pub fn setWriteAddr(self: *Self, write_addr: ?*volatile anyopaque, trigger: bool) void {
         csdk.dma_channel_set_write_addr(self.channel, write_addr, trigger);
     }
 
@@ -38,6 +51,10 @@ pub const Dma = struct {
             .irq0 => csdk.dma_channel_set_irq0_enabled(self.channel, enabled),
             .irq1 => csdk.dma_channel_set_irq1_enabled(self.channel, enabled),
         }
+    }
+
+    pub fn transferFromBufferNow(self: *Self, read_addr: ?*const volatile anyopaque, transfer_count: u32) void {
+        csdk.dma_channel_transfer_from_buffer_now(self.channel, read_addr, transfer_count);
     }
 
     const DmaConfig = struct {

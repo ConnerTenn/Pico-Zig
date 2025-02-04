@@ -133,8 +133,9 @@ pub const csdk = @cImport({
     @cInclude("hardware/gpio.h");
     @cInclude("hardware/pwm.h");
     @cInclude("hardware/pio.h");
-    // @cInclude("pico/time.h");
     @cInclude("hardware/spi.h");
+    @cInclude("hardware/dma.h");
+    // @cInclude("pico/time.h");
 });
 
 // Missing GPIO coprocessor functions

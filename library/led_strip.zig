@@ -18,23 +18,23 @@ pub fn LedStrip(num_leds: comptime_int) type {
             buffer_B,
         } = .buffer_A,
 
-        pub fn create(transmit_pin: hardware.gpio.Pin) Self {
+        pub fn create(transmit_pin: hardware.gpio.Pin) !Self {
             return Self{
-                .dma = hardware.dma.Dma.create(),
-                .ws2812 = WS2812.WS2812.create(transmit_pin),
+                .dma = try hardware.dma.Dma.create(),
+                .ws2812 = try WS2812.WS2812.create(transmit_pin),
                 .swap_buffer_A = .{WS2812.Pixel.create(0, 0, 0, 0)} ** num_leds,
                 .swap_buffer_B = .{WS2812.Pixel.create(0, 0, 0, 0)} ** num_leds,
             };
         }
 
-        pub fn init(self: *Self) Self {
+        pub fn init(self: *Self) void {
             self.ws2812.init();
 
             self.dma.config.setReadIncrement(true);
             self.dma.config.setWriteIncrement(false);
             self.dma.config.setTransferDataSize(.size_32);
             self.dma.config.setDataRequest(self.ws2812.transmit_pio.getDataRequestId(.tx));
-            self.dma.setWriteAddr(self.ws2812.transmit_pio.pio_obj.*.txf[self.ws2812.transmit_pio.state_machine], false);
+            self.dma.setWriteAddr(&(self.ws2812.transmit_pio.pio_obj.*.txf[self.ws2812.transmit_pio.state_machine]), false);
         }
 
         pub fn swapBuffers(self: *Self) void {
@@ -58,6 +58,9 @@ pub fn LedStrip(num_leds: comptime_int) type {
             };
         }
 
-        pub fn render() void {}
+        pub fn render(self: *Self) void {
+            const front_buffer = self.getFrontBuffer();
+            self.dma.transferFromBufferNow(front_buffer.ptr, num_leds);
+        }
     };
 }
