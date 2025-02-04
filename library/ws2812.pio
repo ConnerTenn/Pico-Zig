@@ -1,0 +1,13 @@
+
+.program ws2812
+
+;10 Cycles total
+
+.wrap_target
+bitloop:
+    out x, 1 ;1 cycle
+    mov pins, !null [1] ;2 cycles high
+    mov pins, x     [4] ;5 cycles variable
+    mov pins, null  [1] ;2 cycles low
+.wrap
+
