@@ -30,27 +30,15 @@ pub const Pio = struct {
 
         const success = csdk.pio_claim_free_sm_and_add_program_for_gpio_range(program, &pio_obj, &state_machine, &initial_pc, gpio_base.toSdkPin(), gpio_count, false);
 
-        //Configure the GPIO function of the pins
-        for (gpio_base.toSdkPin()..gpio_base.toSdkPin() + gpio_count) |gpio_pin| {
-            switch (pio_obj) {
-                csdk.pio0_hw => {
-                    csdk.gpio_set_function(gpio_pin, csdk.GPIO_FUNC_PIO0);
-                },
-                csdk.pio1_hw => {
-                    csdk.gpio_set_function(gpio_pin, csdk.GPIO_FUNC_PIO1);
-                },
-                csdk.pio2_hw => {
-                    csdk.gpio_set_function(gpio_pin, csdk.GPIO_FUNC_PIO2);
-                },
-                else => {
-                    pico.stdio.print("Error: Unknown PIO {*}\n", .{pio_obj});
-                    return error.FoundUnknownPIO;
-                },
-            }
-        }
-
         if (!success) {
             return error.FailedToClaimStateMachine;
+        }
+
+        pico.stdio.print("Found free PIO: {*}  SM: {}  PC: {}\n", .{ pio_obj, state_machine, initial_pc });
+
+        //Configure the GPIO function of the pins
+        for (gpio_base.toSdkPin()..gpio_base.toSdkPin() + gpio_count) |gpio_pin| {
+            csdk.pio_gpio_init(pio_obj, gpio_pin);
         }
 
         const self = Self{
@@ -92,12 +80,16 @@ pub const Pio = struct {
         csdk.pio_sm_put(self.pio_obj, self.state_machine, data);
     }
 
-    pub fn getBlocking(self: *Self, data: u32) u32 {
+    pub fn getBlocking(self: *Self) u32 {
         return csdk.pio_sm_get_blocking(self.pio_obj, self.state_machine);
     }
 
-    pub fn getNonBlocking(self: *Self, data: u32) u32 {
+    pub fn getNonBlocking(self: *Self) u32 {
         return csdk.pio_sm_get(self.pio_obj, self.state_machine);
+    }
+
+    pub fn getPC(self: *Self) u32 {
+        return csdk.pio_sm_get_pc(self.pio_obj, self.state_machine) - self.initial_pc;
     }
 };
 
@@ -137,7 +129,7 @@ pub const PioConfig = struct {
         csdk.sm_config_set_out_shift(&self.pio_config, shift_right, autopull, pull_threshold);
     }
 
-    pub fn setClcokDiv(self : *Self, dif: f32) {
+    pub fn setClockDiv(self: *Self, div: f32) void {
         csdk.sm_config_set_clkdiv(&self.pio_config, div);
     }
 
@@ -148,6 +140,6 @@ pub const PioConfig = struct {
     };
 
     pub fn setFifoJoin(self: *Self, config: FifoConfig) void {
-        csdk.sm_config_set_fifo_join(&self.pio_config, config);
+        csdk.sm_config_set_fifo_join(&self.pio_config, @intFromEnum(config));
     }
 };
