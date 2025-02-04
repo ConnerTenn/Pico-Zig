@@ -91,6 +91,10 @@ pub const Pio = struct {
     pub fn getPC(self: *Self) u32 {
         return csdk.pio_sm_get_pc(self.pio_obj, self.state_machine) - self.initial_pc;
     }
+
+    pub fn getDataRequestId(self: *Self, is_tx: bool) u32 {
+        return csdk.pio_get_dreq(self.pio_obj, self.state_machine, is_tx);
+    }
 };
 
 pub const PioConfig = struct {
