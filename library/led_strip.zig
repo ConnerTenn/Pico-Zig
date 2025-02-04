@@ -34,7 +34,11 @@ pub fn LedStrip(num_leds: comptime_int) type {
             self.dma.config.setWriteIncrement(false);
             self.dma.config.setTransferDataSize(.size_32);
             self.dma.config.setDataRequest(self.ws2812.transmit_pio.getDataRequestId(.tx));
-            self.dma.setWriteAddr(&(self.ws2812.transmit_pio.pio_obj.*.txf[self.ws2812.transmit_pio.state_machine]), false);
+
+            const write_ptr = &(self.ws2812.transmit_pio.pio_obj.*.txf[self.ws2812.transmit_pio.state_machine]);
+            self.dma.setWriteAddr(write_ptr, false);
+
+            self.dma.init(false);
         }
 
         pub fn swapBuffers(self: *Self) void {

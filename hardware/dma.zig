@@ -30,7 +30,7 @@ pub const Dma = struct {
     }
 
     pub fn init(self: *Self, trigger: bool) void {
-        csdk.dma_channel_set_config(self.channel, &self.config, trigger);
+        csdk.dma_channel_set_config(self.channel, &self.config.config, trigger);
     }
 
     pub fn setReadAddr(self: *Self, read_addr: ?*const volatile anyopaque, trigger: bool) void {
