@@ -1,7 +1,7 @@
 const pico = @import("../pico.zig");
 const csdk = pico.csdk;
 
-const Dma = struct {
+pub const Dma = struct {
     const Self = @This();
 
     channel: c_int,
@@ -12,7 +12,7 @@ const Dma = struct {
 
         return Self{
             .channel = dma_channel,
-            .config = csdk.dma_channel_get_default_config(channel),
+            .config = csdk.dma_channel_get_default_config(dma_channel),
         };
     }
 

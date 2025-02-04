@@ -92,8 +92,20 @@ pub const Pio = struct {
         return csdk.pio_sm_get_pc(self.pio_obj, self.state_machine) - self.initial_pc;
     }
 
-    pub fn getDataRequestId(self: *Self, is_tx: bool) u32 {
-        return csdk.pio_get_dreq(self.pio_obj, self.state_machine, is_tx);
+    const FifoTyoe = enum {
+        rx,
+        tx,
+    };
+
+    pub fn getDataRequestId(self: *Self, fifo_type: FifoTyoe) u32 {
+        return csdk.pio_get_dreq(
+            self.pio_obj,
+            self.state_machine,
+            switch (fifo_type) {
+                .rx => false,
+                .tx => true,
+            },
+        );
     }
 };
 
