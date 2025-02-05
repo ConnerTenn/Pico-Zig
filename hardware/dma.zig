@@ -57,6 +57,10 @@ pub const Dma = struct {
         csdk.dma_channel_transfer_from_buffer_now(self.channel, read_addr, transfer_count);
     }
 
+    pub fn waitForFinish(self: *Self) void {
+        csdk.dma_channel_wait_for_finish_blocking(self.channel);
+    }
+
     const DmaConfig = struct {
         config: csdk.dma_channel_config,
 

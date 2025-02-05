@@ -48,7 +48,7 @@ pub fn LedStrip(num_leds: comptime_int) type {
             };
         }
 
-        pub fn getFrontBuffer(self: *Self) []WS2812.Pixel {
+        fn getFrontBuffer(self: *Self) []WS2812.Pixel {
             return switch (self.active_buffer) {
                 .buffer_A => &self.swap_buffer_A,
                 .buffer_B => &self.swap_buffer_B,
@@ -63,6 +63,9 @@ pub fn LedStrip(num_leds: comptime_int) type {
         }
 
         pub fn render(self: *Self) void {
+            self.dma.waitForFinish();
+            pico.csdk.sleep_ms(1);
+            self.swapBuffers();
             const front_buffer = self.getFrontBuffer();
             self.dma.transferFromBufferNow(front_buffer.ptr, num_leds);
         }
