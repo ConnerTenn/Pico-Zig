@@ -133,8 +133,9 @@ pub const csdk = @cImport({
     @cInclude("hardware/gpio.h");
     @cInclude("hardware/pwm.h");
     @cInclude("hardware/pio.h");
-    // @cInclude("pico/time.h");
     @cInclude("hardware/spi.h");
+    @cInclude("hardware/dma.h");
+    // @cInclude("pico/time.h");
 });
 
 // Missing GPIO coprocessor functions
@@ -155,4 +156,8 @@ pub export fn gpioc_bit_oe_put(pin: c_uint, val: bool) void {
         : [pin] "r" (pin),
           [val] "r" (val),
     );
+}
+
+pub export fn __compiler_memory_barrier() void {
+    asm volatile ("" ::: "memory");
 }
