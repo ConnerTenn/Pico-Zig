@@ -13,11 +13,12 @@ pub const Pio = struct {
         FoundUnknownPIO,
     };
 
-    program: *const csdk.pio_program_t,
-    default_config_fn: *const DefaultConfigFn,
-
     pio_obj: csdk.PIO,
     state_machine: c_uint,
+    config: PioConfig,
+
+    program: *const csdk.pio_program_t,
+    default_config_fn: *const DefaultConfigFn,
 
     initial_pc: c_uint,
     gpio_base: hardware.gpio.Pin,
@@ -42,10 +43,13 @@ pub const Pio = struct {
         }
 
         const self = Self{
-            .program = program,
-            .default_config_fn = default_config_fn,
             .pio_obj = pio_obj,
             .state_machine = state_machine,
+            .config = PioConfig{
+                .pio_config = default_config_fn(initial_pc),
+            },
+            .program = program,
+            .default_config_fn = default_config_fn,
             .initial_pc = initial_pc,
             .gpio_base = gpio_base,
             .gpio_count = gpio_count,
@@ -64,8 +68,8 @@ pub const Pio = struct {
         };
     }
 
-    pub fn init(self: *Self, config: PioConfig) void {
-        _ = csdk.pio_sm_init(self.pio_obj, self.state_machine, self.initial_pc, &config.pio_config);
+    pub fn init(self: *Self) void {
+        _ = csdk.pio_sm_init(self.pio_obj, self.state_machine, self.initial_pc, &self.config.pio_config);
     }
 
     pub fn enable(self: *Self) void {
@@ -107,55 +111,55 @@ pub const Pio = struct {
             },
         );
     }
-};
 
-pub const PioConfig = struct {
-    const Self = @This();
+    pub const PioConfig = struct {
+        const Self = @This();
 
-    pio_config: csdk.pio_sm_config,
+        pio_config: csdk.pio_sm_config,
 
-    pub fn create() Self {
-        return Self{
-            .pio_config = csdk.pio_get_default_sm_config(),
+        pub fn create() PioConfig {
+            return PioConfig{
+                .pio_config = csdk.pio_get_default_sm_config(),
+            };
+        }
+
+        pub fn setOutPins(self: *PioConfig, gpio_base: hardware.gpio.Pin, gpio_count: hardware.gpio.Pin.Count) void {
+            csdk.sm_config_set_out_pins(&self.pio_config, gpio_base.toSdkPin(), gpio_count);
+        }
+
+        pub fn setInPins(self: *PioConfig, gpio_base: hardware.gpio.Pin, gpio_count: hardware.gpio.Pin.Count) void {
+            csdk.sm_config_set_in_pin_base(&self.pio_config, gpio_base.toSdkPin());
+            csdk.sm_config_set_in_pin_count(&self.pio_config, gpio_count);
+        }
+
+        pub fn setSetPins(self: *PioConfig, gpio_base: hardware.gpio.Pin, gpio_count: hardware.gpio.Pin.Count) void {
+            csdk.sm_config_set_set_pins(&self.pio_config, gpio_base.toSdkPin(), gpio_count);
+        }
+
+        pub fn setSidesetPins(self: *PioConfig, gpio_base: hardware.gpio.Pin) void {
+            csdk.sm_config_set_sideset_pins(&self.pio_config, gpio_base.toSdkPin());
+        }
+
+        pub fn setJmpPin(self: *PioConfig, gpio_num: hardware.gpio.Pin) void {
+            csdk.sm_config_set_jmp_pin(&self.pio_config, gpio_num.toSdkPin());
+        }
+
+        pub fn setOutShift(self: *PioConfig, shift_right: bool, autopull: bool, pull_threshold: u32) void {
+            csdk.sm_config_set_out_shift(&self.pio_config, shift_right, autopull, pull_threshold);
+        }
+
+        pub fn setClockDiv(self: *PioConfig, div: f32) void {
+            csdk.sm_config_set_clkdiv(&self.pio_config, div);
+        }
+
+        const FifoConfig = enum(c_uint) {
+            none = csdk.PIO_FIFO_JOIN_NONE,
+            join_tx = csdk.PIO_FIFO_JOIN_TX,
+            join_rx = csdk.PIO_FIFO_JOIN_RX,
         };
-    }
 
-    pub fn setOutPins(self: *Self, gpio_base: hardware.gpio.Pin, gpio_count: hardware.gpio.Pin.Count) void {
-        csdk.sm_config_set_out_pins(&self.pio_config, gpio_base.toSdkPin(), gpio_count);
-    }
-
-    pub fn setInPins(self: *Self, gpio_base: hardware.gpio.Pin, gpio_count: hardware.gpio.Pin.Count) void {
-        csdk.sm_config_set_in_pin_base(&self.pio_config, gpio_base.toSdkPin());
-        csdk.sm_config_set_in_pin_count(&self.pio_config, gpio_count);
-    }
-
-    pub fn setSetPins(self: *Self, gpio_base: hardware.gpio.Pin, gpio_count: hardware.gpio.Pin.Count) void {
-        csdk.sm_config_set_set_pins(&self.pio_config, gpio_base.toSdkPin(), gpio_count);
-    }
-
-    pub fn setSidesetPins(self: *Self, gpio_base: hardware.gpio.Pin) void {
-        csdk.sm_config_set_sideset_pins(&self.pio_config, gpio_base.toSdkPin());
-    }
-
-    pub fn setJmpPin(self: *Self, gpio_num: hardware.gpio.Pin) void {
-        csdk.sm_config_set_jmp_pin(&self.pio_config, gpio_num.toSdkPin());
-    }
-
-    pub fn setOutShift(self: *Self, shift_right: bool, autopull: bool, pull_threshold: u32) void {
-        csdk.sm_config_set_out_shift(&self.pio_config, shift_right, autopull, pull_threshold);
-    }
-
-    pub fn setClockDiv(self: *Self, div: f32) void {
-        csdk.sm_config_set_clkdiv(&self.pio_config, div);
-    }
-
-    const FifoConfig = enum(c_uint) {
-        none = csdk.PIO_FIFO_JOIN_NONE,
-        join_tx = csdk.PIO_FIFO_JOIN_TX,
-        join_rx = csdk.PIO_FIFO_JOIN_RX,
+        pub fn setFifoJoin(self: *PioConfig, config: FifoConfig) void {
+            csdk.sm_config_set_fifo_join(&self.pio_config, @intFromEnum(config));
+        }
     };
-
-    pub fn setFifoJoin(self: *Self, config: FifoConfig) void {
-        csdk.sm_config_set_fifo_join(&self.pio_config, @intFromEnum(config));
-    }
 };

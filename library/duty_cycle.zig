@@ -46,20 +46,18 @@ pub const DutyCycle = struct {
         //Configure the pin direction
         self.pio_high.setConsecutivePinDirs(self.pio_high.gpio_base, self.pio_high.gpio_count, false);
         //Configure the state machine
-        var pio_high_config = self.pio_high.getDefaultConfig();
-        pio_high_config.setJmpPin(self.pio_high.gpio_base);
+        self.pio_high.config.setJmpPin(self.pio_high.gpio_base);
         //Start the state machine
-        self.pio_high.init(pio_high_config);
+        self.pio_high.init();
         self.pio_high.enable();
 
         //Low Cycle
         //Configure the pin direction
         self.pio_low.setConsecutivePinDirs(self.pio_low.gpio_base, self.pio_low.gpio_count, false);
         //Configure the state machine
-        var pio_low_config = self.pio_low.getDefaultConfig();
-        pio_low_config.setJmpPin(self.pio_low.gpio_base);
+        self.pio_low.config.setJmpPin(self.pio_low.gpio_base);
         //Start the state machine
-        self.pio_low.init(pio_low_config);
+        self.pio_low.init();
         self.pio_low.enable();
     }
 

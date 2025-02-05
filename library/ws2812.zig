@@ -28,19 +28,18 @@ pub const WS2812 = struct {
         self.transmit_pio.setConsecutivePinDirs(self.transmit_pio.gpio_base, self.transmit_pio.gpio_count, true);
 
         //Configure the state machine
-        var transmit_pio_config = self.transmit_pio.getDefaultConfig();
-        transmit_pio_config.setOutShift(false, true, 32);
-        transmit_pio_config.setOutPins(self.transmit_pio.gpio_base, self.transmit_pio.gpio_count);
-        transmit_pio_config.setSetPins(self.transmit_pio.gpio_base, self.transmit_pio.gpio_count);
-        transmit_pio_config.setFifoJoin(.join_tx);
+        self.transmit_pio.config.setOutShift(false, true, 32);
+        self.transmit_pio.config.setOutPins(self.transmit_pio.gpio_base, self.transmit_pio.gpio_count);
+        self.transmit_pio.config.setSetPins(self.transmit_pio.gpio_base, self.transmit_pio.gpio_count);
+        self.transmit_pio.config.setFifoJoin(.join_tx);
 
         const cyclesPerBit = 10.0; //10 cycles to complete the program (see source)
         const transmit_rate = 800000.0; //Bits per second
         const div = @as(f32, @floatFromInt(csdk.clock_get_hz(csdk.clk_sys))) / (transmit_rate * cyclesPerBit);
-        transmit_pio_config.setClockDiv(div);
+        self.transmit_pio.config.setClockDiv(div);
 
         //Start the state machine
-        self.transmit_pio.init(transmit_pio_config);
+        self.transmit_pio.init();
         self.transmit_pio.enable();
     }
 
