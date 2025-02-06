@@ -13,26 +13,38 @@ pub const SPI = struct {
     tx_pin: gpio.Pin,
     rx_pin: gpio.Pin,
     cs_pin: gpio.Gpio,
-    hardware_spi: ?*csdk.spi_inst_t = @ptrCast(csdk.spi0_hw),
+    hardware_spi: *csdk.spi_inst_t,
+    baudrate_hz: u32,
 
-    pub fn create(sck_pin: gpio.Pin, tx_pin: gpio.Pin, rx_pin: gpio.Pin, cs_pin: gpio.Pin, spi_hw: [*c]csdk.spi_hw_t) Self {
+    pub const SpiHw = enum {
+        spi0,
+        spi1,
+    };
+
+    pub fn create(sck_pin: gpio.Pin, tx_pin: gpio.Pin, rx_pin: gpio.Pin, cs_pin: gpio.Pin, spi_hw: SpiHw, baudrate_hz: u32) Self {
+        const hardware_spi = switch (spi_hw) {
+            .spi0 => csdk.spi0_hw,
+            .spi1 => csdk.spi1_hw,
+        };
+
         return Self{
             .sck_pin = sck_pin,
             .tx_pin = tx_pin,
             .rx_pin = rx_pin,
             .cs_pin = gpio.Gpio.create(cs_pin),
-            .hardware_spi = @ptrCast(spi_hw),
+            .hardware_spi = @ptrCast(hardware_spi),
+            .baudrate_hz = baudrate_hz,
         };
     }
 
-    pub fn init(self: Self) void {
+    pub fn init(self: *Self) void {
         self.cs_pin.init(gpio.Gpio.Config{
             .direction = .out,
         });
         self.cs_pin.put(false);
 
-        const baudrate = csdk.spi_init(self.hardware_spi, 5 * 1000 * 1000); //5MHz.
-        stdio.print("SPI baudrate:{}\n", .{baudrate});
+        self.baudrate_hz = csdk.spi_init(self.hardware_spi, self.baudrate_hz);
+        stdio.print("SPI baudrate:{}\n", .{self.baudrate_hz});
         csdk.gpio_set_function(self.sck_pin.toSdkPin(), csdk.GPIO_FUNC_SPI);
         csdk.gpio_set_function(self.tx_pin.toSdkPin(), csdk.GPIO_FUNC_SPI);
         csdk.gpio_set_function(self.rx_pin.toSdkPin(), csdk.GPIO_FUNC_SPI);
