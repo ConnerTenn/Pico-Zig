@@ -58,32 +58,22 @@ pub const SPI = struct {
         self.cs_pin.put(true);
     }
 
-    pub fn readReg(self: Self, T: type) T {
+    pub fn writeRead(self: Self, len: comptime_int, write_data: [len]u8) [len]u8 {
         self.csSelect();
 
-        const read_cmd = 0x80;
-        const write_data = [_]u8{
-            read_cmd | T.address,
-            0,
-        };
-        var read_data: [2]u8 = .{0} ** 2;
-        _ = csdk.spi_write_read_blocking(self.hardware_spi, &write_data, &read_data, 2);
+        var read_data: [len]u8 = .{0} ** len;
+        _ = csdk.spi_write_read_blocking(self.hardware_spi, &write_data, &read_data, len);
 
         self.csDeselect();
         csdk.sleep_us(10);
 
-        return @bitCast(read_data[1]);
+        return read_data;
     }
 
-    pub fn writeReg(self: Self, T: type, data: T) void {
+    pub fn write(self: Self, len: comptime_int, write_data: [len]u8) void {
         self.csSelect();
 
-        const write_cmd = 0x00;
-        const write_data = [_]u8{
-            write_cmd | T.address,
-            @as(u8, @bitCast(data)),
-        };
-        _ = csdk.spi_write_blocking(self.hardware_spi, &write_data, 2);
+        _ = csdk.spi_write_blocking(self.hardware_spi, &write_data, len);
 
         self.csDeselect();
         csdk.sleep_us(10);
