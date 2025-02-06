@@ -1,3 +1,6 @@
+const std = @import("std");
+const math = std.math;
+
 const pico = @import("../pico.zig");
 const csdk = pico.csdk;
 const hardware = pico.hardware;
@@ -13,7 +16,7 @@ pub const GU128x32 = struct {
 
     pub fn create(sck_pin: gpio.Pin, tx_pin: gpio.Pin, rx_pin: gpio.Pin, cs_pin: gpio.Pin, cmd_data_pin: gpio.Pin, frame_pulse_pin: gpio.Pin, spi_hw: spi.SPI.SpiHw) Self {
         const min_cycle_time_ns = 80 * 2;
-        const baudrate_hz = (10 ** 9) / min_cycle_time_ns;
+        const baudrate_hz = math.pow(u32, 10, 9) / min_cycle_time_ns;
         return Self{
             .spi = spi.SPI.create(sck_pin, tx_pin, rx_pin, cs_pin, spi_hw, baudrate_hz),
             .cmd_data_pin = cmd_data_pin,
@@ -34,11 +37,11 @@ pub const GU128x32 = struct {
     };
 
     pub fn write(self: *Self, write_type: WriteType, data: u8) void {
-        self.cmd_data_pin.put(@intFromEnum(write_type));
-        self.spi.writeReg(u8, data);
+        self.cmd_data_pin.put(@intFromEnum(write_type) == 1);
+        self.spi.write(1, [_]u8{data});
     }
 
-    const DisplayOnOff = struct {
+    pub const DisplayOnOff = struct {
         byte1: packed struct {
             const write_type: WriteType = .command;
 
@@ -73,21 +76,25 @@ pub const GU128x32 = struct {
         },
     };
 
-    const BrightnessSet = packed struct {
-        const write_type: WriteType = .command;
+    const BrightnessSet = struct {
+        byte1: packed struct {
+            const write_type: WriteType = .command;
 
-        brightness: u4,
-        reserved_0: u4 = 0b0100,
+            brightness: u4,
+            reserved_0: u4 = 0b0100,
+        },
     };
 
-    const DisplayClear = packed struct {
-        const write_type: WriteType = .command;
+    const DisplayClear = struct {
+        byte1: packed struct {
+            const write_type: WriteType = .command;
 
-        hm: u1,
-        reserved_0: u1 = 1,
-        g0c: u1,
-        g1c: u1,
-        reserved_1: u4 = 0b0101,
+            hm: u1,
+            reserved_0: u1 = 1,
+            g0c: u1,
+            g1c: u1,
+            reserved_1: u4 = 0b0101,
+        },
     };
 
     const DisplayAreaSet = struct {
@@ -154,28 +161,50 @@ pub const GU128x32 = struct {
         },
     };
 
-    const DataStartYAddress = packed struct {
-        const write_type: WriteType = .command;
+    const DataStartYAddress = struct {
+        byte1: packed struct {
+            const write_type: WriteType = .command;
 
-        reserved_0: u1 = 0,
-        s0: u1,
-        s1: u1,
-        ud: u1,
-        reserved_1: u4 = 0b1011,
+            reserved_0: u1 = 0,
+            s0: u1,
+            s1: u1,
+            ud: u1,
+            reserved_1: u4 = 0b1011,
+        },
     };
 
-    const AddressModeSet = packed struct {
-        const write_type: WriteType = .command;
+    const AddressModeSet = struct {
+        byte1: packed struct {
+            const write_type: WriteType = .command;
 
-        reserved_0: u1 = 0,
-        igy: u1,
-        igx: u1,
-        reserved_1: u5 = 0b10000,
+            reserved_0: u1 = 0,
+            igy: u1,
+            igx: u1,
+            reserved_1: u5 = 0b10000,
+        },
     };
 
-    const DataWrite = packed struct {
-        const write_type: WriteType = .data;
+    const DataWrite = struct {
+        byte1: packed struct {
+            const write_type: WriteType = .data;
 
-        data: u8,
+            data: u8,
+        },
     };
+
+    pub fn writeCommand(self: *Self, cmd: anytype) void {
+        const info = @typeInfo(@TypeOf(cmd));
+
+        //Loop through each byte in the command
+        const fields = info.Struct.fields;
+        inline for (fields) |field| {
+            //Get the command byte
+            const cmd_byte = @field(cmd, field.name);
+            //Extract the data from the command byte
+            const write_type = @TypeOf(cmd_byte).write_type;
+            const data: u8 = @bitCast(cmd_byte);
+            //Write over SPI
+            self.write(write_type, data);
+        }
+    }
 };
