@@ -8,16 +8,16 @@ pub const GU128x32 = struct {
     const Self = @This();
 
     spi: spi.SPI,
-    cmd_data_pin: gpio.Gpio,
-    frame_pulse_pin: gpio.Gpio,
+    cmd_data_pin: gpio.Pin,
+    frame_pulse_pin: gpio.Pin,
 
     pub fn create(sck_pin: gpio.Pin, tx_pin: gpio.Pin, rx_pin: gpio.Pin, cs_pin: gpio.Pin, cmd_data_pin: gpio.Pin, frame_pulse_pin: gpio.Pin, spi_hw: spi.SPI.SpiHw) Self {
         const min_cycle_time_ns = 80 * 2;
         const baudrate_hz = (10 ** 9) / min_cycle_time_ns;
         return Self{
             .spi = spi.SPI.create(sck_pin, tx_pin, rx_pin, cs_pin, spi_hw, baudrate_hz),
-            .cmd_data_pin = gpio.Gpio.create(cmd_data_pin),
-            .frame_pulse_pin = gpio.Gpio.create(frame_pulse_pin),
+            .cmd_data_pin = cmd_data_pin,
+            .frame_pulse_pin = frame_pulse_pin,
         };
     }
 

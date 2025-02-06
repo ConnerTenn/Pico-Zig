@@ -12,7 +12,7 @@ pub const SPI = struct {
     sck_pin: gpio.Pin,
     tx_pin: gpio.Pin,
     rx_pin: gpio.Pin,
-    cs_pin: gpio.Gpio,
+    cs_pin: gpio.Pin,
     hardware_spi: *csdk.spi_inst_t,
     baudrate_hz: u32,
 
@@ -31,14 +31,14 @@ pub const SPI = struct {
             .sck_pin = sck_pin,
             .tx_pin = tx_pin,
             .rx_pin = rx_pin,
-            .cs_pin = gpio.Gpio.create(cs_pin),
+            .cs_pin = cs_pin,
             .hardware_spi = @ptrCast(hardware_spi),
             .baudrate_hz = baudrate_hz,
         };
     }
 
     pub fn init(self: *Self) void {
-        self.cs_pin.init(gpio.Gpio.Config{
+        self.cs_pin.init(gpio.Pin.Config{
             .direction = .out,
         });
         self.cs_pin.put(false);
