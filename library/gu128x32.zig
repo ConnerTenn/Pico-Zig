@@ -13,6 +13,7 @@ pub const GU128x32 = struct {
     spi: spi.SPI,
     cmd_data_pin: gpio.Pin,
     frame_pulse_pin: gpio.Pin,
+    display_buffer: DisplayBuffer,
 
     pub fn create(
         sck_pin: gpio.Pin,
@@ -38,10 +39,14 @@ pub const GU128x32 = struct {
             ),
             .cmd_data_pin = cmd_data_pin,
             .frame_pulse_pin = frame_pulse_pin,
+            .display_buffer = DisplayBuffer.create(),
         };
     }
 
     pub fn init(self: *Self) void {
+        self.display_buffer.clearDisplayBuffer();
+
+        // == Initialize SPI ==
         self.spi.init();
         self.cmd_data_pin.init(.{
             .direction = .out,
@@ -293,4 +298,118 @@ pub const GU128x32 = struct {
             self.write(write_type, data);
         }
     }
+
+    pub fn render(self: *Self) void {
+        // Set the write address back to 0
+        self.writeCommand(pico.library.gu128x32.GU128x32.DataWriteXAddress{
+            .byte1 = .{},
+            .byte2 = .{
+                .gram_x_addr = 0,
+            },
+        });
+
+        // Go through the display buffer
+        for (self.display_buffer.display_buffer, 0..) |line, line_idx| {
+
+            // Advance to the next line
+            self.writeCommand(pico.library.gu128x32.GU128x32.DataWriteYAddress{
+                .byte1 = .{},
+                .byte2 = .{
+                    .gram_y_addr = @intCast(line_idx),
+                },
+            });
+
+            for (line) |segment| {
+                self.writeCommand(DataWrite{ .byte1 = .{
+                    .data = segment,
+                } });
+            }
+        }
+    }
+};
+
+pub const DisplayBuffer = struct {
+    const Self = @This();
+
+    display_buffer: [4][128]u8 = undefined,
+
+    pub fn create() Self {
+        var self = Self{};
+
+        self.clearDisplayBuffer();
+
+        return self;
+    }
+
+    pub fn clearDisplayBuffer(self: *Self) void {
+        // Clear the display buffer
+        for (&self.display_buffer) |*line| {
+            for (line) |*segment| {
+                segment.* = 0;
+            }
+        }
+    }
+
+    /// Sets a pixel in the display buffer
+    ///
+    /// x: [0, 127]
+    ///
+    /// y: [0, 32]
+    pub inline fn setPixel(self: *Self, x: u7, y: u5, pixel: bool) void {
+        const line_idx: u2 = @intCast(y >> 3);
+        const bit_pos: u3 = @truncate(y);
+
+        const mask: u8 = ~(@as(u8, 1) << bit_pos);
+
+        self.display_buffer[line_idx][x] = (self.display_buffer[line_idx][x] & mask) | (@as(u8, @intFromBool(pixel)) << bit_pos);
+    }
+
+    // The Bresenham Line Drawing Algorithm
+    pub fn drawLine(self: *Self, x1: u7, y1: u5, x2: u7, y2: u5, pixel: bool) void {
+        const x_min = @min(x1, x2);
+        const x_max = @max(x1, x2);
+
+        const y_min = @min(y1, y2);
+        const y_max = @max(y1, y2);
+
+        const dx: i16 = x_max - x_min;
+        const dy: i16 = y_max - y_min;
+
+        if (dy <= dx) {
+            // Horizontal line
+
+            var px = 2 * dy - dx;
+            var y: i16 = y1;
+            for (x_min..x_max + 1) |x| {
+                setPixel(self, @intCast(x), @intCast(y), pixel);
+
+                if (px < 0) {
+                    px = px + 2 * dy;
+                } else {
+                    y += if (dy >= 0) 1 else -1;
+                    px = px + 2 * (dy - dx);
+                }
+            }
+        } else {
+            //vertical line
+
+            var py = 2 * dx - dy;
+            var x: i16 = x1;
+            for (y_min..y_max + 1) |y| {
+                setPixel(self, @intCast(x), @intCast(y), pixel);
+
+                if (py <= 0) {
+                    py = py + 2 * dx;
+                } else {
+                    x += if (dx >= 0) 1 else -1;
+                    py = py + 2 * (dx - dy);
+                }
+            }
+        }
+    }
+};
+
+const BitmapFont = [128]BitmapCharacter;
+const BitmapCharacter = struct {
+    data: [5]u8,
 };
