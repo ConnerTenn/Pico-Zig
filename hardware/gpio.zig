@@ -18,6 +18,7 @@ pub const Pin = enum(u5) {
             .up = false,
             .down = false,
         },
+        schmitt_trigger: bool = false,
     };
 
     pub fn create(pin: anytype) Self {
@@ -26,10 +27,12 @@ pub const Pin = enum(u5) {
 
     pub fn init(self: Self, config: Config) void {
         csdk.gpio_init(self.toSdkPin());
+
         switch (config.direction) {
             .in => csdk.gpio_set_dir(self.toSdkPin(), false),
             .out => csdk.gpio_set_dir(self.toSdkPin(), true),
         }
+        csdk.gpio_set_input_hysteresis_enabled(self.toSdkPin(), config.schmitt_trigger);
 
         csdk.gpio_set_pulls(self.toSdkPin(), config.pull.up, config.pull.down);
     }

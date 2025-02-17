@@ -44,7 +44,7 @@ pub const GU128x32 = struct {
     }
 
     pub fn init(self: *Self) void {
-        self.display_buffer.clearDisplayBuffer();
+        self.display_buffer.clear();
 
         // == Initialize SPI ==
         self.spi.init();
@@ -339,12 +339,12 @@ pub const DisplayBuffer = struct {
     pub fn create() Self {
         var self = Self{};
 
-        self.clearDisplayBuffer();
+        self.clear();
 
         return self;
     }
 
-    pub fn clearDisplayBuffer(self: *Self) void {
+    pub fn clear(self: *Self) void {
         // Clear the display buffer
         for (&self.display_buffer) |*line| {
             for (line) |*segment| {
