@@ -347,9 +347,10 @@ pub const DisplayBuffer = struct {
     pub fn clear(self: *Self) void {
         // Clear the display buffer
         for (&self.display_buffer) |*line| {
-            for (line) |*segment| {
-                segment.* = 0;
-            }
+            // for (line) |*segment| {
+            //     segment.* = 0;
+            // }
+            @memset(line, 0);
         }
     }
 
