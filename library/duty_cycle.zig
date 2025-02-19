@@ -66,7 +66,11 @@ pub const DutyCycle = struct {
         const low_time = math.maxInt(u32) - csdk.pio_sm_get_blocking(self.pio_low.pio_obj, self.pio_low.state_machine);
         const ratio = @as(f32, @floatFromInt(high_time)) / @as(f32, @floatFromInt(high_time + low_time));
         // stdio.print("high:low {d: >7}:{d: >7}   {d:.4}\n", .{ high_time, low_time, ratio });
+
         return ratio;
+
+        // const corrected_ratio = pico.math.remap(f32, ratio, 0.0038, 0.9981, 0.0, 1.0);
+        // return corrected_ratio;
     }
 
     pub fn getSensor(self: *Self) pico.library.motor.AngleSensor {
@@ -77,7 +81,10 @@ pub const DutyCycle = struct {
     }
 
     fn _getAngle(ctx: *anyopaque) f32 {
+        // Empirically measured correction factor for the difference between sensor zero and electrical zero
+        const correction_factor = 0.0238;
+
         const self: *Self = @alignCast(@ptrCast(ctx));
-        return self.readDutyCycle() * math.tau;
+        return pico.math.mod(f32, (self.readDutyCycle() - correction_factor) * math.tau, math.tau, .euclidean);
     }
 };

@@ -108,3 +108,16 @@ pub fn demoModFunctions() void {
         stdio.print("\n", .{});
     }
 }
+
+// https://www.ronja-tutorials.com/post/047-invlerp_remap/
+pub fn remap(T: type, value: T, orig_from: T, orig_to: T, target_from: T, target_to: T) T {
+    return lerp(T, lerpInv(T, value, orig_from, orig_to), target_from, target_to);
+}
+
+pub fn lerp(T: type, value: T, from: T, to: T) T {
+    return (@as(T, 1) - value) * from + value * to;
+}
+
+pub fn lerpInv(T: type, value: T, from: T, to: T) T {
+    return (value - from) / (to - from);
+}
