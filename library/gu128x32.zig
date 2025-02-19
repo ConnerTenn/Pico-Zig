@@ -331,8 +331,8 @@ pub const GU128x32 = struct {
 pub const DisplayBuffer = struct {
     const Self = @This();
 
-    const num_lines = 4;
-    const num_columns = 128;
+    pub const num_lines = 4;
+    pub const num_columns = 128;
 
     display_buffer: [num_lines][num_columns]u8 = undefined,
 
@@ -370,14 +370,14 @@ pub const DisplayBuffer = struct {
 
     // The Bresenham Line Drawing Algorithm
     pub fn drawLine(self: *Self, x1: u7, y1: u5, x2: u7, y2: u5, pixel: bool) void {
-        const x_min = @min(x1, x2);
-        const x_max = @max(x1, x2);
+        const x_min: u16 = @min(x1, x2);
+        const x_max: u16 = @max(x1, x2);
 
-        const y_min = @min(y1, y2);
-        const y_max = @max(y1, y2);
+        const y_min: u16 = @min(y1, y2);
+        const y_max: u16 = @max(y1, y2);
 
-        const dx: i16 = x_max - x_min;
-        const dy: i16 = y_max - y_min;
+        const dx: i16 = @as(i16, @intCast(x_max)) - @as(i16, @intCast(x_min));
+        const dy: i16 = @as(i16, @intCast(y_max)) - @as(i16, @intCast(y_min));
 
         if (dy <= dx) {
             // Horizontal line
@@ -395,7 +395,7 @@ pub const DisplayBuffer = struct {
                 }
             }
         } else {
-            //vertical line
+            //Vertical line
 
             var py = 2 * dx - dy;
             var x: i16 = x1;
