@@ -412,6 +412,20 @@ pub const DisplayBuffer = struct {
         }
     }
 
+    pub fn drawRectangle(self: *Self, x1: u7, y1: u5, x2: u7, y2: u5, pixel: bool) void {
+        // Draw horizontal lines
+        for (x1..@as(u16, x2 + 1)) |x| {
+            self.setPixel(@intCast(x), y1, pixel);
+            self.setPixel(@intCast(x), y2, pixel);
+        }
+        // Draw vertical lines
+        // Skip first and last row since horizontal lines already took care of that
+        for (y1 + 1..y2) |y| {
+            self.setPixel(x1, @intCast(y), pixel);
+            self.setPixel(x2, @intCast(y), pixel);
+        }
+    }
+
     const PrintConfig = struct {
         self: *Self,
         line: u2,
