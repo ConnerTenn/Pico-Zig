@@ -427,9 +427,36 @@ pub const DisplayBuffer = struct {
     }
 
     pub fn fillRectangle(self: *Self, x1: u7, y1: u5, x2: u7, y2: u5, pixel: bool) void {
-        for (y1..@as(u16, y2 + 1)) |y| {
+        const start_line = y1 / 8;
+        const end_line = y2 / 8;
+        const lower_bits_off: u3 = @intCast(y1 % 8);
+        const upper_bits_off: u3 = 7 - @as(u3, @intCast(y2 % 8));
+
+        const upper_mask: u8 = (@as(u8, 0xFF) >> lower_bits_off) << lower_bits_off;
+        const lower_mask: u8 = (@as(u8, 0xFF) << upper_bits_off) >> upper_bits_off;
+        const combined_mask: u8 = upper_mask & lower_mask;
+
+        const pixel_column: u8 = if (pixel) 0xFF else 0;
+
+        for (start_line..end_line + 1) |line| {
             for (x1..@as(u16, x2 + 1)) |x| {
-                self.setPixel(@intCast(x), @intCast(y), pixel);
+                if (line == start_line and line == end_line) {
+                    // The rectangle is smaller than a single line
+                    // ..1111..
+                    self.display_buffer[line][x] = (self.display_buffer[line][x] & ~combined_mask) | (pixel_column & combined_mask);
+                } else if (line == start_line) {
+                    // The upper part of this line is cut off (therefore we turn on the lower pixes, which are the higher bits)
+                    // 1111..
+                    self.display_buffer[line][x] = (self.display_buffer[line][x] & ~upper_mask) | (pixel_column & upper_mask);
+                } else if (line == end_line) {
+                    // The lower part of this line is cut off (therefore we turn on the upper pixes, which are the lower bits)
+                    // ..1111
+                    self.display_buffer[line][x] = (self.display_buffer[line][x] & ~lower_mask) | (pixel_column & lower_mask);
+                } else {
+                    // The whole line is on
+                    // 11111111
+                    self.display_buffer[line][x] = pixel_column;
+                }
             }
         }
     }
