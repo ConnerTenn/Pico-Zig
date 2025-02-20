@@ -28,7 +28,7 @@ pub const RGB = struct {
         const chroma = hsv.value * hsv.saturation;
         const chroma_fade = chroma * (1.0 - @abs(pico.math.mod(f32, 6.0 * hsv.hue, 2.0, .euclidean) - 1.0));
 
-        return switch (hue_region) {
+        var rgb = switch (hue_region) {
             0 => create(chroma, chroma_fade, 0.0),
             1 => create(chroma_fade, chroma, 0.0),
             2 => create(0.0, chroma, chroma_fade),
@@ -37,6 +37,13 @@ pub const RGB = struct {
             5 => create(chroma, 0.0, chroma_fade),
             else => unreachable,
         };
+
+        const value_compensation = hsv.value - chroma;
+        rgb.red += value_compensation;
+        rgb.green += value_compensation;
+        rgb.blue += value_compensation;
+
+        return rgb;
     }
 
     pub fn fromHSL(hsl: HSL) Self {
