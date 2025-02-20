@@ -139,9 +139,9 @@ pub fn Motor(comptime use_calibration: bool) type {
             _ = rad_per_sec; // autofix
         }
 
-        pub const TorqueFn = fn (angle: f32, delta_time_s: f32) f32;
+        pub const TorqueFn = fn (angle: f32, delta_time_s: f32, ctx: ?*const anyopaque) f32;
 
-        pub inline fn update(self: *Self, torqueFn: TorqueFn) void {
+        pub inline fn update(self: *Self, torqueFn: TorqueFn, ctx: ?*const anyopaque) void {
             const current_time_us = csdk.get_absolute_time();
             const delta_time_us = current_time_us - self.last_time_us;
             const delta_time_s: f32 = @as(f32, @floatFromInt(delta_time_us)) / (1000.0 * 1000.0);
@@ -175,7 +175,7 @@ pub fn Motor(comptime use_calibration: bool) type {
             // }.skewed_sin;
 
             // const torque = torque_fn(delta_error);
-            const torque = torqueFn(self.state.angle, delta_time_s);
+            const torque = torqueFn(self.state.angle, delta_time_s, ctx);
 
             // const phase = bldc.mod(
             //     f32,
