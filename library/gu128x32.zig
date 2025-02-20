@@ -426,6 +426,14 @@ pub const DisplayBuffer = struct {
         }
     }
 
+    pub fn fillRectangle(self: *Self, x1: u7, y1: u5, x2: u7, y2: u5, pixel: bool) void {
+        for (y1..@as(u16, y2 + 1)) |y| {
+            for (x1..@as(u16, x2 + 1)) |x| {
+                self.setPixel(@intCast(x), @intCast(y), pixel);
+            }
+        }
+    }
+
     const PrintConfig = struct {
         self: *Self,
         line: u2,
@@ -433,7 +441,7 @@ pub const DisplayBuffer = struct {
     };
     const char_width = 5;
 
-    fn strWrite(self: *Self, str: []const u8, line: u2, x_offset: u7) void {
+    fn strWrite(self: *Self, str: []const u8, line: u2, x_offset: u7) u7 {
         var current_char_column = x_offset;
 
         for (str) |char| {
@@ -442,7 +450,7 @@ pub const DisplayBuffer = struct {
             for (0..char_width) |char_data_column| {
                 // Check for overflow off the right side of the screeen
                 if (@as(u8, current_char_column) + char_width >= num_columns) {
-                    return;
+                    return num_columns - 1;
                 }
 
                 // Get the character data from the data block
@@ -457,17 +465,18 @@ pub const DisplayBuffer = struct {
             }
 
             // Move to the position of the next char
-            current_char_column += char_width;
+            // Saturating add
+            current_char_column +|= char_width + 1;
         }
+
+        return current_char_column;
     }
 
     fn strWriteFn(context: *const anyopaque, bytes: []const u8) anyerror!usize {
         const print_config: *PrintConfig = @constCast(@alignCast(@ptrCast(context)));
         const self = print_config.self;
 
-        self.strWrite(bytes, print_config.line, print_config.x_offset);
-
-        const next_x_offset = print_config.x_offset + char_width * bytes.len;
+        const next_x_offset = self.strWrite(bytes, print_config.line, print_config.x_offset);
 
         // Check for overflow off the right side of the screen
         if (next_x_offset < num_columns) {
