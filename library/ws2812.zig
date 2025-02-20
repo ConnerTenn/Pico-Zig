@@ -62,13 +62,13 @@ pub const Pixel = packed union {
         green: u8, //MSB
     },
 
-    pub fn create(red: u8, blue: u8, green: u8, white: u8) Self {
+    pub fn create(red: u8, green: u8, blue: u8, white: u8) Self {
         return Self{
             .rgbw = .{
-                .white = white,
-                .blue = blue,
                 .red = red,
                 .green = green,
+                .blue = blue,
+                .white = white,
             },
         };
     }
