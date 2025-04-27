@@ -12,11 +12,13 @@ pub const PwmSlice = struct {
 
     slice_num: SliceNum,
     counter_wrap: u16,
+    clkdiv: u8,
 
-    pub fn create(slice_num: SliceNum, counter_wrap: ?u16) Self {
+    pub fn create(slice_num: SliceNum, counter_wrap: ?u16, clkdiv: u8) Self {
         const self = Self{
             .slice_num = slice_num,
             .counter_wrap = counter_wrap orelse math.maxInt(u16),
+            .clkdiv = clkdiv,
         };
 
         return self;
@@ -35,7 +37,7 @@ pub const PwmSlice = struct {
         var config = csdk.pwm_get_default_config();
 
         csdk.pwm_config_set_output_polarity(&config, true, false);
-        csdk.pwm_config_set_clkdiv_int(&config, 1);
+        csdk.pwm_config_set_clkdiv_int(&config, self.clkdiv);
         csdk.pwm_config_set_wrap(&config, self.counter_wrap);
         // csdk.pwm_config_set_phase_correct(&config, true);
 
