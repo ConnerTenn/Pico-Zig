@@ -135,6 +135,7 @@ pub const csdk = @cImport({
     @cInclude("hardware/pwm.h");
     @cInclude("hardware/pio.h");
     @cInclude("hardware/spi.h");
+    @cInclude("hardware/i2c.h");
     @cInclude("hardware/dma.h");
     // @cInclude("pico/time.h");
 });

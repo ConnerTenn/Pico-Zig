@@ -7,3 +7,4 @@ pub const WS2812 = @import("ws2812.zig");
 pub const colour = @import("colour.zig");
 pub const led_strip = @import("led_strip.zig");
 pub const gu128x32 = @import("gu128x32.zig");
+pub const mpu6050 = @import("mpu6050.zig");
