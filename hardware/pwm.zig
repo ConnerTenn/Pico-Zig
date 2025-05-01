@@ -24,13 +24,15 @@ pub const PwmSlice = struct {
         return self;
     }
 
-    pub fn createFromGpio(gpio_num: hardware.gpio.Pin, counter_wrap: ?u16) Self {
+    pub fn createFromGpio(gpio_num: hardware.gpio.Pin, counter_wrap: ?u16, clkdiv: u8) Self {
         const slice_num = gpioToSliceNum(gpio_num);
-        return create(slice_num, counter_wrap);
+        return create(slice_num, counter_wrap, clkdiv);
     }
 
     pub inline fn gpioToSliceNum(gpio_num: hardware.gpio.Pin) SliceNum {
-        return csdk.pwm_gpio_to_slice_num(gpio_num);
+        const gpio: c_uint = @intFromEnum(gpio_num);
+        const slice: c_uint = csdk.pwm_gpio_to_slice_num(gpio);
+        return @intCast(slice);
     }
 
     pub fn init(self: Self) void {
