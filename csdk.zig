@@ -18,7 +18,7 @@ pub const csdk = @cImport({
             @cDefine("LIB_PICO_DIVIDER_HARDWARE", "1");
             @cDefine("LIB_PICO_DOUBLE", "1");
             @cDefine("LIB_PICO_DOUBLE_PICO", "1");
-            @cDefine("LIB_PICO_FIX_RP2040_USB_DEVICE_ENUMERATION", 1);
+            @cDefine("LIB_PICO_FIX_RP2040_USB_DEVICE_ENUMERATION", "1");
             @cDefine("LIB_PICO_FLASH", "1");
             @cDefine("LIB_PICO_FLOAT", "1");
             @cDefine("LIB_PICO_FLOAT_PICO", "1");
@@ -145,19 +145,23 @@ pub const csdk = @cImport({
 // and instead treats them as extern functions instead. We must make sure they are implemented
 
 pub export fn gpioc_bit_out_put(pin: c_uint, val: bool) void {
-    asm volatile ("mcrr p0, #4, %[pin], %[val], c0"
-        :
-        : [pin] "r" (pin),
-          [val] "r" (val),
-    );
+    if (config.target == .rp2350) {
+        asm volatile ("mcrr p0, #4, %[pin], %[val], c0"
+            :
+            : [pin] "r" (pin),
+              [val] "r" (val),
+        );
+    }
 }
 
 pub export fn gpioc_bit_oe_put(pin: c_uint, val: bool) void {
-    asm volatile ("mcrr p0, #4, %[pin], %[val], c4"
-        :
-        : [pin] "r" (pin),
-          [val] "r" (val),
-    );
+    if (config.target == .rp2350) {
+        asm volatile ("mcrr p0, #4, %[pin], %[val], c4"
+            :
+            : [pin] "r" (pin),
+              [val] "r" (val),
+        );
+    }
 }
 
 pub export fn __compiler_memory_barrier() void {
