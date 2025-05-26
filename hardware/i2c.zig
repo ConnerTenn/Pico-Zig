@@ -33,33 +33,49 @@ pub const I2C = struct {
         };
     }
 
-    pub fn init(self: *Self) void {
-        _ = csdk.i2c_init(self.i2c_instance, self.baudrate);
+    pub fn init(self: Self) void {
+        // stdio.print("Init I2C\n", .{});
+        const actual_baudrate = csdk.i2c_init(self.i2c_instance, self.baudrate);
+        _ = actual_baudrate; // autofix
+        // stdio.print("Target Baudrate:{}, Actual Baudrate:{}\n", .{ self.baudrate, actual_baudrate });
 
-        csdk.gpio_set_function(csdk.PICO_DEFAULT_I2C_SDA_PIN, csdk.GPIO_FUNC_I2C);
-        csdk.gpio_set_function(csdk.PICO_DEFAULT_I2C_SCL_PIN, csdk.GPIO_FUNC_I2C);
+        csdk.gpio_set_function(self.sda_pin.toSdkPin(), csdk.GPIO_FUNC_I2C);
+        csdk.gpio_set_function(self.scl_pin.toSdkPin(), csdk.GPIO_FUNC_I2C);
         csdk.gpio_pull_up(self.sda_pin.toSdkPin());
         csdk.gpio_pull_up(self.scl_pin.toSdkPin());
     }
 
     const StopCondition = enum {
-        nostop,
-        stop,
+        stop, //Issue a stop
+        restart, //Do not issue a stop, but will cause a re-start to be issued
+        burst, //Will transmit as a burst
     };
 
-    pub fn readBlocking(self: *Self, i2c_addr: u7, data: *anyopaque, size: usize, stop_condition: StopCondition) void {
-        const nostop = switch (stop_condition) {
-            .nostop => true,
-            .stop => false,
-        };
-        _ = csdk.i2c_read_blocking(self.i2c_instance, @intCast(i2c_addr), @ptrCast(data), size, nostop);
+    pub fn readBlocking(self: Self, i2c_addr: u7, data: *anyopaque, size: usize, stop_condition: StopCondition) void {
+        switch (stop_condition) {
+            .stop => {
+                _ = csdk.i2c_read_blocking(self.i2c_instance, @intCast(i2c_addr), @ptrCast(data), size, false);
+            },
+            .restart => {
+                _ = csdk.i2c_read_blocking(self.i2c_instance, @intCast(i2c_addr), @ptrCast(data), size, true);
+            },
+            .burst => {
+                _ = csdk.i2c_read_burst_blocking(self.i2c_instance, @intCast(i2c_addr), @ptrCast(data), size);
+            },
+        }
     }
 
-    pub fn writeBlocking(self: *Self, i2c_addr: u7, data: *const anyopaque, size: usize, stop_condition: StopCondition) void {
-        const nostop = switch (stop_condition) {
-            .nostop => true,
-            .stop => false,
-        };
-        _ = csdk.i2c_write_blocking(self.i2c_instance, @intCast(i2c_addr), @ptrCast(data), size, nostop);
+    pub fn writeBlocking(self: Self, i2c_addr: u7, data: *const anyopaque, size: usize, stop_condition: StopCondition) void {
+        switch (stop_condition) {
+            .stop => {
+                _ = csdk.i2c_write_blocking(self.i2c_instance, @intCast(i2c_addr), @ptrCast(data), size, false);
+            },
+            .restart => {
+                _ = csdk.i2c_write_blocking(self.i2c_instance, @intCast(i2c_addr), @ptrCast(data), size, true);
+            },
+            .burst => {
+                _ = csdk.i2c_write_burst_blocking(self.i2c_instance, @intCast(i2c_addr), @ptrCast(data), size);
+            },
+        }
     }
 };

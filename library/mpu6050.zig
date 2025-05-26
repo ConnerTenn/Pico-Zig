@@ -10,7 +10,8 @@ const hardware = pico.hardware;
 pub const MPU6050 = struct {
     const Self = @This();
 
-    pub const baudrate = 400 * 1000;
+    // pub const baudrate = 400 * 1000;
+    pub const baudrate = 40 * 1000;
     pub const i2c_addr = 0x68;
 
     i2c: hardware.i2c.I2C,
@@ -22,14 +23,27 @@ pub const MPU6050 = struct {
     }
 
     pub fn init(self: *Self) void {
+        // stdio.print("Init MPU6050\n", .{});
+
+        // stdio.print("Init i2c\n", .{});
         self.i2c.init();
 
+        stdio.print("WhoAmI: 0x{x}\n", .{self.readReg(WhoAmI).byte});
+
         self.reset();
+
+        // self.writeReg(pico.library.mpu6050.MPU6050.InterruptConfig{
+        //     .data_ready_enable = 1,
+        //     .i2c_master_int_enable = 0,
+        //     .fifo_overflow_enable = 0,
+        //     .motion_enable = 0,
+        // });
     }
 
     pub fn reset(self: *Self) void {
+        stdio.print("Put into reset\n", .{});
         self.writeReg(PowerManagement1{
-            .clk_sel = 0,
+            .clk_sel = .internal_8MHz,
             .temp_disable = 0,
             .cycle = 0,
             .sleep = 0,
@@ -37,19 +51,25 @@ pub const MPU6050 = struct {
         });
         csdk.sleep_ms(100); // Allow device to reset and stabilize
 
+        self.writeReg(pico.library.mpu6050.MPU6050.SignalPathReset{
+            .temp_reset = 1,
+            .accel_reset = 1,
+            .gyro_reset = 1,
+        });
+
+        stdio.print("Take out of sleep\n", .{});
         self.writeReg(PowerManagement1{
-            .clk_sel = 0,
+            .clk_sel = .pll_x_gyro,
             .temp_disable = 0,
             .cycle = 0,
             .sleep = 0,
             .device_reset = 0,
         });
-        csdk.sleep_ms(10); // Allow stabilization after waking up
+
+        csdk.sleep_ms(100); // Allow stabilization after waking up
     }
 
     const RawImuData = struct {
-        const address = 0x3B;
-
         accel_x: i16,
         accel_y: i16,
         accel_z: i16,
@@ -78,8 +98,8 @@ pub const MPU6050 = struct {
     }
 
     pub fn readReg(self: *Self, Reg: type) Reg {
-        const addr: usize = Reg.address;
-        self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .nostop);
+        const addr: u8 = Reg.address;
+        self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .restart);
 
         var reg: Reg = undefined;
         self.i2c.readBlocking(i2c_addr, @ptrCast(&reg), @sizeOf(Reg), .stop);
@@ -88,12 +108,96 @@ pub const MPU6050 = struct {
 
     pub fn writeReg(self: *Self, reg: anytype) void {
         const Reg = @TypeOf(reg);
-        const addr: usize = Reg.address;
-        self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .nostop);
+        const addr: u8 = Reg.address;
+        self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .burst);
         self.i2c.writeBlocking(i2c_addr, @ptrCast(&reg), @sizeOf(Reg), .stop);
     }
 
-    const AccelerometerRegisters = packed struct {
+    pub const SelfTestX = packed struct {
+        const address = 0x0D;
+
+        gyroscope_test: u5,
+        accelerometer_test_upper: u3,
+    };
+
+    pub const SelfTestY = packed struct {
+        const address = 0x0E;
+
+        gyroscope_test: u5,
+        accelerometer_test_upper: u3,
+    };
+
+    pub const SelfTestZ = packed struct {
+        const address = 0x0F;
+
+        gyroscope_test: u5,
+        accelerometer_test_upper: u3,
+    };
+
+    pub const SelfTestExtra = packed struct {
+        const address = 0x10;
+
+        accelerometer_z_lower: u2,
+        accelerometer_y_lower: u2,
+        accelerometer_x_lower: u2,
+        reserved0: u2 = 0,
+    };
+
+    pub const GyroscopeConfig = packed struct {
+        const address = 0x1B;
+
+        reserved0: u3 = 0,
+        fs_sel: enum(u2) {
+            sel_250deg_sec = 0,
+            sel_500deg_sec = 1,
+            sel_1000deg_sec = 2,
+            sel_2000deg_sec = 3,
+        },
+        z_self_test: u1,
+        y_self_test: u1,
+        x_self_test: u1,
+    };
+
+    pub const AccelerometerConfig = packed struct {
+        const address = 0x1C;
+
+        reserved0: u3 = 0,
+        afs_sel: enum(u2) {
+            sel_2g = 0,
+            sel_4g = 1,
+            sel_8g = 2,
+            sel_16g = 3,
+        },
+        z_self_test: u1,
+        y_self_test: u1,
+        x_self_test: u1,
+    };
+
+    pub const InterruptConfig = packed struct {
+        const address = 0x38;
+
+        data_ready_enable: u1,
+        reserved0: u2 = 0,
+        i2c_master_int_enable: u1,
+        fifo_overflow_enable: u1,
+        reserved1: u1 = 0,
+        motion_enable: u1,
+        reserved2: u1 = 0,
+    };
+
+    pub const InterruptStatus = packed struct {
+        const address = 0x3A;
+
+        data_ready_int: u1,
+        reserved0: u2 = 0,
+        i2c_master_int: u1,
+        fifo_overflow_int: u1,
+        reserved1: u1 = 0,
+        motion_int: u1,
+        reserved2: u1 = 0,
+    };
+
+    pub const AccelerometerRegisters = packed struct {
         const address = 0x3B;
 
         accel_x_high: i8,
@@ -102,12 +206,16 @@ pub const MPU6050 = struct {
         accel_y_low: i8,
         accel_z_high: i8,
         accel_z_low: i8,
-        gyro_x: i16,
-        gyro_y: i16,
-        gyro_z: i16,
     };
 
-    const GyroscopeRegisters = packed struct {
+    pub const TemperatureRegisters = packed struct {
+        const address = 0x41;
+
+        temp_high: u8,
+        temp_low: u8,
+    };
+
+    pub const GyroscopeRegisters = packed struct {
         const address = 0x43;
 
         gyro_x_high: i8,
@@ -118,14 +226,43 @@ pub const MPU6050 = struct {
         gyro_z_low: i8,
     };
 
-    const PowerManagement1 = packed struct {
+    pub const SignalPathReset = packed struct {
         const address = 0x68;
 
-        clk_sel: u3,
+        temp_reset: u1,
+        accel_reset: u1,
+        gyro_reset: u1,
+        reserved0: u5 = 0,
+    };
+
+    pub const PowerManagement1 = packed struct {
+        const address = 0x6B;
+
+        clk_sel: enum(u3) {
+            internal_8MHz,
+            pll_x_gyro,
+            pll_y_gyro,
+            pll_z_gyro,
+            pll_external_32_768kHz,
+            pll_external_19_2kHz,
+            reserved,
+            stopped_clock,
+        },
         temp_disable: u1,
-        _: u1 = 0,
+        reserved0: u1 = 0,
         cycle: u1,
         sleep: u1,
         device_reset: u1,
+    };
+
+    pub const WhoAmI = packed union {
+        const address = 0x75;
+
+        bits: packed struct {
+            reserved0: u1 = 0,
+            who_am_i: u6,
+            reserved1: u1 = 0,
+        },
+        byte: u8,
     };
 };
