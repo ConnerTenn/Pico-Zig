@@ -85,8 +85,8 @@ pub const MPU6050 = struct {
         const gyro_data = self.readReg(GyroscopeRegisters);
 
         return RawImuData{
-            .accel = accel_data.getData(),
-            .gyro = gyro_data.getData(),
+            .accel = accel_data.getXYZ(),
+            .gyro = gyro_data.getXYZ(),
         };
     }
 
@@ -106,6 +106,55 @@ pub const MPU6050 = struct {
         self.i2c.writeBlocking(i2c_addr, @ptrCast(&reg), @bitSizeOf(Reg) / 8, .stop);
     }
 
+    fn calibrateAccelerometer(self: *Self) void {
+        // The influence of gravity must be subtracted during calibration
+        const full_scale_val = self.readReg(AccelerometerConfig).afs_sel;
+        const gravity: i16 = @as(i16, 16384) >> @intFromEnum(full_scale_val);
+
+        // Loop to slowly refine the offset calibration value
+        for (0..50) |_| {
+            const prev_offset = self.readReg(AccelOffset).getOffsets();
+            const accel = self.readReg(AccelerometerRegisters).getXYZ();
+
+            // The target acceleration is 0 (we assume the sensor is not moving), therefore it is the 'error'.
+            // Subtract half the error each loop
+            const offset = RawXYZData{
+                .x = prev_offset.x - @divTrunc(accel.x, 2),
+                .y = prev_offset.y - @divTrunc(accel.y, 2),
+                .z = prev_offset.z - @divTrunc(accel.z - gravity, 2), //Assume gravity is acting through the z axis
+            };
+            // stdio.print("Offset: {}\n", .{offset});
+
+            self.writeReg(AccelOffset.fromXYZData(offset));
+        }
+    }
+
+    fn calibrateGyro(self: *Self) void {
+        // Loop to slowly refine the offset calibration value
+        for (0..50) |_| {
+            const prev_offset = self.readReg(GyroOffset).getOffsets();
+            const gyro = self.readReg(GyroscopeRegisters).getXYZ();
+
+            // The target acceleration is 0 (we assume the sensor is not moving), therefore it is the 'error'.
+            // Subtract half the error each loop
+            const offset = RawXYZData{
+                .x = prev_offset.x - @divTrunc(gyro.x, 2),
+                .y = prev_offset.y - @divTrunc(gyro.y, 2),
+                .z = prev_offset.z - @divTrunc(gyro.z, 2),
+            };
+            // stdio.print("Offset: {}\n", .{offset});
+
+            self.writeReg(GyroOffset.fromXYZData(offset));
+        }
+    }
+
+    pub fn calibrate(self: *Self) void {
+        // stdio.print("Pre Calibrate: {}\n", .{self.readReg(AccelOffset).getOffsets()});
+        stdio.print("Calibrate...\n", .{});
+        self.calibrateAccelerometer();
+        self.calibrateGyro();
+    }
+
     pub const AccelOffset = packed struct {
         const address = 0x06;
         offset_x_high: u8,
@@ -117,9 +166,23 @@ pub const MPU6050 = struct {
 
         pub fn getOffsets(self: AccelOffset) RawXYZData {
             return RawXYZData{
-                .x = @bitCast([2]i8{ self.offset_x_low, self.offset_x_high }),
-                .y = @bitCast([2]i8{ self.offset_y_low, self.offset_y_high }),
-                .z = @bitCast([2]i8{ self.offset_z_low, self.offset_z_high }),
+                .x = @bitCast([2]u8{ self.offset_x_low, self.offset_x_high }),
+                .y = @bitCast([2]u8{ self.offset_y_low, self.offset_y_high }),
+                .z = @bitCast([2]u8{ self.offset_z_low, self.offset_z_high }),
+            };
+        }
+
+        pub fn fromXYZData(xyz: RawXYZData) AccelOffset {
+            const offset_x_bytes: [2]u8 = @bitCast(xyz.x);
+            const offset_y_bytes: [2]u8 = @bitCast(xyz.y);
+            const offset_z_bytes: [2]u8 = @bitCast(xyz.z);
+            return AccelOffset{
+                .offset_x_high = offset_x_bytes[1],
+                .offset_x_low = offset_x_bytes[0],
+                .offset_y_high = offset_y_bytes[1],
+                .offset_y_low = offset_y_bytes[0],
+                .offset_z_high = offset_z_bytes[1],
+                .offset_z_low = offset_z_bytes[0],
             };
         }
     };
@@ -168,6 +231,20 @@ pub const MPU6050 = struct {
                 .x = @bitCast([2]u8{ self.offset_x_low, self.offset_x_high }),
                 .y = @bitCast([2]u8{ self.offset_y_low, self.offset_y_high }),
                 .z = @bitCast([2]u8{ self.offset_z_low, self.offset_z_high }),
+            };
+        }
+
+        pub fn fromXYZData(xyz: RawXYZData) GyroOffset {
+            const offset_x_bytes: [2]u8 = @bitCast(xyz.x);
+            const offset_y_bytes: [2]u8 = @bitCast(xyz.y);
+            const offset_z_bytes: [2]u8 = @bitCast(xyz.z);
+            return GyroOffset{
+                .offset_x_high = offset_x_bytes[1],
+                .offset_x_low = offset_x_bytes[0],
+                .offset_y_high = offset_y_bytes[1],
+                .offset_y_low = offset_y_bytes[0],
+                .offset_z_high = offset_z_bytes[1],
+                .offset_z_low = offset_z_bytes[0],
             };
         }
     };
@@ -244,7 +321,7 @@ pub const MPU6050 = struct {
         accel_z_high: u8,
         accel_z_low: u8,
 
-        pub fn getData(self: AccelerometerRegisters) RawXYZData {
+        pub fn getXYZ(self: AccelerometerRegisters) RawXYZData {
             return RawXYZData{
                 .x = @bitCast([2]u8{ self.accel_x_low, self.accel_x_high }),
                 .y = @bitCast([2]u8{ self.accel_y_low, self.accel_y_high }),
@@ -270,7 +347,7 @@ pub const MPU6050 = struct {
         gyro_z_high: u8,
         gyro_z_low: u8,
 
-        pub fn getData(self: GyroscopeRegisters) RawXYZData {
+        pub fn getXYZ(self: GyroscopeRegisters) RawXYZData {
             return RawXYZData{
                 .x = @bitCast([2]u8{ self.gyro_x_low, self.gyro_x_high }),
                 .y = @bitCast([2]u8{ self.gyro_y_low, self.gyro_y_high }),
