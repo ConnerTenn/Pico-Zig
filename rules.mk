@@ -36,6 +36,7 @@ help:
 	@echo "Commands:"
 	@echo "  env                  - Load the dev environment shell"
 	@echo "  build                - Build the project"
+	@echo "  test                - Run tests for the project"
 	@echo "  program              - Program the pico"
 	@echo "  serial               - Connect to the serial term"
 	@echo "  program-then-serial  - Program the pico and then automatically connect to serial"
@@ -50,6 +51,9 @@ env: ${RUN_DIR}/flake.nix
 
 .PHONY:build
 build: $(BIN)
+
+test:
+	zig test Pico-Zig/test.zig
 
 lsblk:
 	watch -n 0 lsblk -T -o NAME,SIZE,MOUNTPOINTS,LABEL
