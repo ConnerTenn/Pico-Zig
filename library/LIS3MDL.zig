@@ -2,7 +2,7 @@ const std = @import("std");
 const math = std.math;
 const tau = math.tau;
 
-const pico = @import("pico");
+const pico = @import("../pico.zig");
 const csdk = pico.csdk;
 const stdio = pico.stdio;
 const hardware = pico.hardware;

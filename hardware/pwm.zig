@@ -12,30 +12,34 @@ pub const PwmSlice = struct {
 
     slice_num: SliceNum,
     counter_wrap: u16,
+    clkdiv: u8,
 
-    pub fn create(slice_num: SliceNum, counter_wrap: ?u16) Self {
+    pub fn create(slice_num: SliceNum, counter_wrap: ?u16, clkdiv: u8) Self {
         const self = Self{
             .slice_num = slice_num,
             .counter_wrap = counter_wrap orelse math.maxInt(u16),
+            .clkdiv = clkdiv,
         };
 
         return self;
     }
 
-    pub fn createFromGpio(gpio_num: hardware.gpio.Pin, counter_wrap: ?u16) Self {
+    pub fn createFromGpio(gpio_num: hardware.gpio.Pin, counter_wrap: ?u16, clkdiv: u8) Self {
         const slice_num = gpioToSliceNum(gpio_num);
-        return create(slice_num, counter_wrap);
+        return create(slice_num, counter_wrap, clkdiv);
     }
 
     pub inline fn gpioToSliceNum(gpio_num: hardware.gpio.Pin) SliceNum {
-        return csdk.pwm_gpio_to_slice_num(gpio_num);
+        const gpio: c_uint = @intFromEnum(gpio_num);
+        const slice: c_uint = csdk.pwm_gpio_to_slice_num(gpio);
+        return @intCast(slice);
     }
 
     pub fn init(self: Self) void {
         var config = csdk.pwm_get_default_config();
 
         csdk.pwm_config_set_output_polarity(&config, true, false);
-        csdk.pwm_config_set_clkdiv_int(&config, 1);
+        csdk.pwm_config_set_clkdiv_int(&config, self.clkdiv);
         csdk.pwm_config_set_wrap(&config, self.counter_wrap);
         // csdk.pwm_config_set_phase_correct(&config, true);
 
