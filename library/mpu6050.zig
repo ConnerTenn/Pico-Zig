@@ -69,32 +69,25 @@ pub const MPU6050 = struct {
         csdk.sleep_ms(100); // Allow stabilization after waking up
     }
 
+    const RawXYZData = struct {
+        x: i16,
+        y: i16,
+        z: i16,
+    };
+
     const RawImuData = struct {
-        accel_x: i16,
-        accel_y: i16,
-        accel_z: i16,
-        gyro_x: i16,
-        gyro_y: i16,
-        gyro_z: i16,
-
-        fn create(accel_data: AccelerometerRegisters, gyro_data: GyroscopeRegisters) RawImuData {
-            return RawImuData{
-                .accel_x = @bitCast([2]i8{ accel_data.accel_x_low, accel_data.accel_x_high }),
-                .accel_y = @bitCast([2]i8{ accel_data.accel_y_low, accel_data.accel_y_high }),
-                .accel_z = @bitCast([2]i8{ accel_data.accel_z_low, accel_data.accel_z_high }),
-
-                .gyro_x = @bitCast([2]i8{ gyro_data.gyro_x_low, gyro_data.gyro_x_high }),
-                .gyro_y = @bitCast([2]i8{ gyro_data.gyro_y_low, gyro_data.gyro_y_high }),
-                .gyro_z = @bitCast([2]i8{ gyro_data.gyro_z_low, gyro_data.gyro_z_high }),
-            };
-        }
+        accel: RawXYZData,
+        gyro: RawXYZData,
     };
 
     pub fn getRawImuData(self: *Self) RawImuData {
         const accel_data = self.readReg(AccelerometerRegisters);
         const gyro_data = self.readReg(GyroscopeRegisters);
 
-        return RawImuData.create(accel_data, gyro_data);
+        return RawImuData{
+            .accel = accel_data.getData(),
+            .gyro = gyro_data.getData(),
+        };
     }
 
     pub fn readReg(self: *Self, Reg: type) Reg {
@@ -112,6 +105,24 @@ pub const MPU6050 = struct {
         self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .burst);
         self.i2c.writeBlocking(i2c_addr, @ptrCast(&reg), @bitSizeOf(Reg) / 8, .stop);
     }
+
+    pub const AccelOffset = packed struct {
+        const address = 0x06;
+        offset_x_high: u8,
+        offset_x_low: u8,
+        offset_y_high: u8,
+        offset_y_low: u8,
+        offset_z_high: u8,
+        offset_z_low: u8,
+
+        pub fn getOffsets(self: AccelOffset) RawXYZData {
+            return RawXYZData{
+                .x = @bitCast([2]i8{ self.offset_x_low, self.offset_x_high }),
+                .y = @bitCast([2]i8{ self.offset_y_low, self.offset_y_high }),
+                .z = @bitCast([2]i8{ self.offset_z_low, self.offset_z_high }),
+            };
+        }
+    };
 
     pub const SelfTestX = packed struct {
         const address = 0x0D;
@@ -141,6 +152,24 @@ pub const MPU6050 = struct {
         accelerometer_y_lower: u2,
         accelerometer_x_lower: u2,
         reserved0: u2 = 0,
+    };
+
+    pub const GyroOffset = packed struct {
+        const address = 0x13;
+        offset_x_high: u8,
+        offset_x_low: u8,
+        offset_y_high: u8,
+        offset_y_low: u8,
+        offset_z_high: u8,
+        offset_z_low: u8,
+
+        pub fn getOffsets(self: GyroOffset) RawXYZData {
+            return RawXYZData{
+                .x = @bitCast([2]u8{ self.offset_x_low, self.offset_x_high }),
+                .y = @bitCast([2]u8{ self.offset_y_low, self.offset_y_high }),
+                .z = @bitCast([2]u8{ self.offset_z_low, self.offset_z_high }),
+            };
+        }
     };
 
     pub const GeneralConfig = packed struct {
@@ -208,12 +237,20 @@ pub const MPU6050 = struct {
     pub const AccelerometerRegisters = packed struct {
         const address = 0x3B;
 
-        accel_x_high: i8,
-        accel_x_low: i8,
-        accel_y_high: i8,
-        accel_y_low: i8,
-        accel_z_high: i8,
-        accel_z_low: i8,
+        accel_x_high: u8,
+        accel_x_low: u8,
+        accel_y_high: u8,
+        accel_y_low: u8,
+        accel_z_high: u8,
+        accel_z_low: u8,
+
+        pub fn getData(self: AccelerometerRegisters) RawXYZData {
+            return RawXYZData{
+                .x = @bitCast([2]u8{ self.accel_x_low, self.accel_x_high }),
+                .y = @bitCast([2]u8{ self.accel_y_low, self.accel_y_high }),
+                .z = @bitCast([2]u8{ self.accel_z_low, self.accel_z_high }),
+            };
+        }
     };
 
     pub const TemperatureRegisters = packed struct {
@@ -226,12 +263,20 @@ pub const MPU6050 = struct {
     pub const GyroscopeRegisters = packed struct {
         const address = 0x43;
 
-        gyro_x_high: i8,
-        gyro_x_low: i8,
-        gyro_y_high: i8,
-        gyro_y_low: i8,
-        gyro_z_high: i8,
-        gyro_z_low: i8,
+        gyro_x_high: u8,
+        gyro_x_low: u8,
+        gyro_y_high: u8,
+        gyro_y_low: u8,
+        gyro_z_high: u8,
+        gyro_z_low: u8,
+
+        pub fn getData(self: GyroscopeRegisters) RawXYZData {
+            return RawXYZData{
+                .x = @bitCast([2]u8{ self.gyro_x_low, self.gyro_x_high }),
+                .y = @bitCast([2]u8{ self.gyro_y_low, self.gyro_y_high }),
+                .z = @bitCast([2]u8{ self.gyro_z_low, self.gyro_z_high }),
+            };
+        }
     };
 
     pub const SignalPathReset = packed struct {
