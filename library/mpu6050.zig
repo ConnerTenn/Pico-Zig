@@ -79,13 +79,13 @@ pub const MPU6050 = struct {
 
         fn create(accel_data: AccelerometerRegisters, gyro_data: GyroscopeRegisters) RawImuData {
             return RawImuData{
-                .accel_x = (@as(i16, @intCast(accel_data.accel_x_high)) << 8) | (accel_data.accel_x_low),
-                .accel_y = (@as(i16, @intCast(accel_data.accel_y_high)) << 8) | (accel_data.accel_y_low),
-                .accel_z = (@as(i16, @intCast(accel_data.accel_z_high)) << 8) | (accel_data.accel_z_low),
+                .accel_x = @bitCast([2]i8{ accel_data.accel_x_low, accel_data.accel_x_high }),
+                .accel_y = @bitCast([2]i8{ accel_data.accel_y_low, accel_data.accel_y_high }),
+                .accel_z = @bitCast([2]i8{ accel_data.accel_z_low, accel_data.accel_z_high }),
 
-                .gyro_x = (@as(i16, @intCast(gyro_data.gyro_x_high)) << 8) | (gyro_data.gyro_x_low),
-                .gyro_y = (@as(i16, @intCast(gyro_data.gyro_y_high)) << 8) | (gyro_data.gyro_y_low),
-                .gyro_z = (@as(i16, @intCast(gyro_data.gyro_z_high)) << 8) | (gyro_data.gyro_z_low),
+                .gyro_x = @bitCast([2]i8{ gyro_data.gyro_x_low, gyro_data.gyro_x_high }),
+                .gyro_y = @bitCast([2]i8{ gyro_data.gyro_y_low, gyro_data.gyro_y_high }),
+                .gyro_z = @bitCast([2]i8{ gyro_data.gyro_z_low, gyro_data.gyro_z_high }),
             };
         }
     };
@@ -102,7 +102,7 @@ pub const MPU6050 = struct {
         self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .restart);
 
         var reg: Reg = undefined;
-        self.i2c.readBlocking(i2c_addr, @ptrCast(&reg), @sizeOf(Reg), .stop);
+        self.i2c.readBlocking(i2c_addr, @ptrCast(&reg), @bitSizeOf(Reg) / 8, .stop);
         return reg;
     }
 
@@ -110,7 +110,7 @@ pub const MPU6050 = struct {
         const Reg = @TypeOf(reg);
         const addr: u8 = Reg.address;
         self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .burst);
-        self.i2c.writeBlocking(i2c_addr, @ptrCast(&reg), @sizeOf(Reg), .stop);
+        self.i2c.writeBlocking(i2c_addr, @ptrCast(&reg), @bitSizeOf(Reg) / 8, .stop);
     }
 
     pub const SelfTestX = packed struct {
@@ -140,6 +140,14 @@ pub const MPU6050 = struct {
         accelerometer_z_lower: u2,
         accelerometer_y_lower: u2,
         accelerometer_x_lower: u2,
+        reserved0: u2 = 0,
+    };
+
+    pub const GeneralConfig = packed struct {
+        const address = 0x1A;
+
+        digital_filter_config: u3,
+        ext_sync_set: u3,
         reserved0: u2 = 0,
     };
 
@@ -266,3 +274,50 @@ pub const MPU6050 = struct {
         byte: u8,
     };
 };
+
+const expect = std.testing.expect;
+
+test "AccelerometerRegisters" {
+    try expect(@bitSizeOf(MPU6050.AccelerometerRegisters) == 6 * 8);
+    const size = @bitSizeOf(MPU6050.AccelerometerRegisters) / 8;
+
+    const accel_data = MPU6050.AccelerometerRegisters{
+        .accel_x_high = 1,
+        .accel_x_low = 2,
+        .accel_y_high = 3,
+        .accel_y_low = 4,
+        .accel_z_high = 5,
+        .accel_z_low = 6,
+    };
+    const data: []const u8 = @as([*]const u8, @ptrCast(&accel_data))[0..size];
+
+    try expect(data[0] == 1);
+    try expect(data[1] == 2);
+    try expect(data[2] == 3);
+    try expect(data[3] == 4);
+    try expect(data[4] == 5);
+    try expect(data[5] == 6);
+
+    {
+        const low: i8 = 1;
+        const high: i8 = 1;
+        const combined: i16 = @bitCast([2]i8{ low, high });
+        try expect(combined == 0x0101);
+    }
+
+    {
+        const low: i8 = -1;
+        const high: i8 = 1;
+        const combined: i16 = @bitCast([2]i8{ low, high });
+        // std.debug.print("Result: {X}\n", .{combined});
+        try expect(combined == 0x01FF);
+    }
+
+    {
+        const low: i8 = 1;
+        const high: i8 = -1;
+        const combined: i16 = @bitCast([2]i8{ low, high });
+        // std.debug.print("Result: {X}\n", .{combined});
+        try expect(combined == @as(i16, @bitCast(@as(u16, 0xFF01))));
+    }
+}
