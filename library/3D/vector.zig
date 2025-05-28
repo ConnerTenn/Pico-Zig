@@ -5,7 +5,7 @@ pub const Vector = struct {
     const Self = @This();
     pub const Vec3 = @Vector(3, f32);
 
-    xyz: Vec3,
+    xyz: Vec3 = @splat(0.0),
 
     pub fn create(x_val: f32, y_val: f32, z_val: f32) Self {
         return Self{

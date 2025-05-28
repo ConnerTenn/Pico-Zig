@@ -22,8 +22,8 @@ pub const MPU6050 = struct {
     pub fn create(i2c: hardware.i2c.I2C) Self {
         return Self{
             .i2c = i2c,
-            .accel_sensitivity = .sel_8g,
-            .gyro_sensitivity = .sel_1000deg_sec,
+            .accel_sensitivity = .sel_2g,
+            .gyro_sensitivity = .sel_2000deg_sec,
         };
     }
 
@@ -96,21 +96,23 @@ pub const MPU6050 = struct {
         };
     }
 
-    const AccelData = struct {
+    /// Measured in [g] or 9.81[m/s/s]
+    pub const AccelData = struct {
         x: f32 = 0.0,
         y: f32 = 0.0,
         z: f32 = 0.0,
 
         fn fromRawXYZ(raw_xyz: RawXYZData, sensitivity: AccelerometerConfig.Sensitivity) AccelData {
             return AccelData{
-                .x = sensitivity.rawToGram(raw_xyz.x),
-                .y = sensitivity.rawToGram(raw_xyz.y),
-                .z = sensitivity.rawToGram(raw_xyz.z),
+                .x = sensitivity.rawToG(raw_xyz.x),
+                .y = sensitivity.rawToG(raw_xyz.y),
+                .z = sensitivity.rawToG(raw_xyz.z),
             };
         }
     };
 
-    const GyroData = struct {
+    /// Measured in [deg/s]
+    pub const GyroData = struct {
         x: f32 = 0.0,
         y: f32 = 0.0,
         z: f32 = 0.0,
@@ -157,41 +159,71 @@ pub const MPU6050 = struct {
         });
     }
 
+    pub fn getSampleRateHz(self: *Self) f32 {
+        const gyro_output_rate = self.readReg(GeneralConfig).getGyroOutputRateHz();
+        const sample_rate_div = self.readReg(SampleRateDivider).sample_rate_divider;
+        return @as(f32, @floatFromInt(gyro_output_rate)) / (1.0 + @as(f32, @floatFromInt(sample_rate_div)));
+    }
+
     fn calibrateAccelerometer(self: *Self) void {
+        // stdio.print("calibrateAccelerometer...\n", .{});
+        const afs_sel = self.readReg(AccelerometerConfig).afs_sel;
+
         // The influence of gravity must be subtracted during calibration
-        const full_scale_val = self.readReg(AccelerometerConfig).afs_sel;
-        const gravity: i16 = @as(i16, 16384) >> @intFromEnum(full_scale_val);
+        const raw_1g: i16 = switch (afs_sel) {
+            .sel_2g => std.math.maxInt(i16) / 2,
+            .sel_4g => std.math.maxInt(i16) / 4,
+            .sel_8g => std.math.maxInt(i16) / 8,
+            .sel_16g => std.math.maxInt(i16) / 16,
+        };
+
+        const div_factor: i16 = switch (afs_sel) {
+            .sel_2g => 16, //Most sensitive
+            .sel_4g => 8,
+            .sel_8g => 4,
+            .sel_16g => 2,
+        };
 
         // Loop to slowly refine the offset calibration value
         for (0..50) |_| {
             const prev_offset = self.readReg(AccelOffset).getOffsets();
             const accel = self.readReg(AccelerometerRegisters).getXYZ();
+            // stdio.print("prev_offset: {}\n", .{prev_offset});
+            // stdio.print("accel: {}\n", .{accel});
 
             // The target acceleration is 0 (we assume the sensor is not moving), therefore it is the 'error'.
-            // Subtract half the error each loop
+            // Subtract some of the error each loop
             const offset = RawXYZData{
-                .x = prev_offset.x - @divTrunc(accel.x, 2),
-                .y = prev_offset.y - @divTrunc(accel.y, 2),
-                .z = prev_offset.z - @divTrunc(accel.z - gravity, 2), //Assume gravity is acting through the z axis
+                .x = prev_offset.x - @divTrunc(accel.x, div_factor),
+                .y = prev_offset.y - @divTrunc(accel.y, div_factor),
+                .z = prev_offset.z - @divTrunc(accel.z - raw_1g, div_factor), //Assume gravity is acting through the z axis
             };
-            // stdio.print("Offset: {}\n", .{offset});
+            // stdio.print("offset: {}\n", .{offset});
+            // stdio.print("\n", .{});
 
             self.writeReg(AccelOffset.fromXYZData(offset));
         }
     }
 
     fn calibrateGyro(self: *Self) void {
+        const div_factor: i16 = switch (self.readReg(GyroscopeConfig).fs_sel) {
+            .sel_250deg_sec => 2,
+            .sel_500deg_sec => 2,
+            .sel_1000deg_sec => 4,
+            .sel_2000deg_sec => 4, //Most sensitive
+        };
+
         // Loop to slowly refine the offset calibration value
         for (0..50) |_| {
             const prev_offset = self.readReg(GyroOffset).getOffsets();
             const gyro = self.readReg(GyroscopeRegisters).getXYZ();
 
             // The target acceleration is 0 (we assume the sensor is not moving), therefore it is the 'error'.
-            // Subtract half the error each loop
+            // Subtract some of the error each loop
             const offset = RawXYZData{
-                .x = prev_offset.x - @divTrunc(gyro.x, 2),
-                .y = prev_offset.y - @divTrunc(gyro.y, 2),
-                .z = prev_offset.z - @divTrunc(gyro.z, 2),
+                .x = prev_offset.x - @divTrunc(gyro.x, div_factor),
+                .y = prev_offset.y - @divTrunc(gyro.y, div_factor),
+                .z = prev_offset.z - @divTrunc(gyro.z, div_factor),
             };
             // stdio.print("Offset: {}\n", .{offset});
 
@@ -316,12 +348,25 @@ pub const MPU6050 = struct {
         }
     };
 
+    pub const SampleRateDivider = packed struct {
+        const address = 0x19;
+
+        sample_rate_divider: u8,
+    };
+
     pub const GeneralConfig = packed struct {
         const address = 0x1A;
 
         digital_filter_config: u3,
         ext_sync_set: u3,
         reserved0: u2 = 0,
+
+        fn getGyroOutputRateHz(self: GeneralConfig) u16 {
+            return switch (self.digital_filter_config) {
+                0, 7 => 8000,
+                1, 2, 3, 4, 5, 6 => 1000,
+            };
+        }
     };
 
     pub const GyroscopeConfig = packed struct {
@@ -361,7 +406,7 @@ pub const MPU6050 = struct {
             sel_8g = 2,
             sel_16g = 3,
 
-            fn rawToGram(self: Sensitivity, raw: i16) f32 {
+            fn rawToG(self: Sensitivity, raw: i16) f32 {
                 //normalized val
                 const val: f32 = @as(f32, @floatFromInt(raw)) / @as(f32, @floatFromInt(std.math.maxInt(i16)));
                 return switch (self) {
