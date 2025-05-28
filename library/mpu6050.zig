@@ -16,9 +16,14 @@ pub const MPU6050 = struct {
 
     i2c: hardware.i2c.I2C,
 
+    accel_sensitivity: AccelerometerConfig.Sensitivity,
+    gyro_sensitivity: GyroscopeConfig.Sensitivity,
+
     pub fn create(i2c: hardware.i2c.I2C) Self {
         return Self{
             .i2c = i2c,
+            .accel_sensitivity = .sel_8g,
+            .gyro_sensitivity = .sel_1000deg_sec,
         };
     }
 
@@ -38,6 +43,7 @@ pub const MPU6050 = struct {
         //     .fifo_overflow_enable = 0,
         //     .motion_enable = 0,
         // });
+        self.setSensitivity(self.accel_sensitivity, self.gyro_sensitivity);
     }
 
     pub fn reset(self: *Self) void {
@@ -51,7 +57,7 @@ pub const MPU6050 = struct {
         });
         csdk.sleep_ms(100); // Allow device to reset and stabilize
 
-        self.writeReg(pico.library.mpu6050.MPU6050.SignalPathReset{
+        self.writeReg(SignalPathReset{
             .temp_reset = 1,
             .accel_reset = 1,
             .gyro_reset = 1,
@@ -90,20 +96,65 @@ pub const MPU6050 = struct {
         };
     }
 
-    pub fn readReg(self: *Self, Reg: type) Reg {
-        const addr: u8 = Reg.address;
-        self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .restart);
+    const AccelData = struct {
+        x: f32 = 0.0,
+        y: f32 = 0.0,
+        z: f32 = 0.0,
 
-        var reg: Reg = undefined;
-        self.i2c.readBlocking(i2c_addr, @ptrCast(&reg), @bitSizeOf(Reg) / 8, .stop);
-        return reg;
+        fn fromRawXYZ(raw_xyz: RawXYZData, sensitivity: AccelerometerConfig.Sensitivity) AccelData {
+            return AccelData{
+                .x = sensitivity.rawToGram(raw_xyz.x),
+                .y = sensitivity.rawToGram(raw_xyz.y),
+                .z = sensitivity.rawToGram(raw_xyz.z),
+            };
+        }
+    };
+
+    const GyroData = struct {
+        x: f32 = 0.0,
+        y: f32 = 0.0,
+        z: f32 = 0.0,
+
+        fn fromRawXYZ(raw_xyz: RawXYZData, sensitivity: GyroscopeConfig.Sensitivity) GyroData {
+            return GyroData{
+                .x = sensitivity.rawToDegPerSec(raw_xyz.x),
+                .y = sensitivity.rawToDegPerSec(raw_xyz.y),
+                .z = sensitivity.rawToDegPerSec(raw_xyz.z),
+            };
+        }
+    };
+
+    pub const ImuData = struct {
+        accel: AccelData = AccelData{},
+        gyro: GyroData = GyroData{},
+    };
+
+    pub fn getImuData(self: *Self) ImuData {
+        const raw_imu_data = self.getRawImuData();
+
+        return ImuData{
+            .accel = AccelData.fromRawXYZ(raw_imu_data.accel, self.accel_sensitivity),
+            .gyro = GyroData.fromRawXYZ(raw_imu_data.gyro, self.gyro_sensitivity),
+        };
     }
 
-    pub fn writeReg(self: *Self, reg: anytype) void {
-        const Reg = @TypeOf(reg);
-        const addr: u8 = Reg.address;
-        self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .burst);
-        self.i2c.writeBlocking(i2c_addr, @ptrCast(&reg), @bitSizeOf(Reg) / 8, .stop);
+    pub fn setSensitivity(self: *Self, accel_sensitivity: AccelerometerConfig.Sensitivity, gyro_sensitivity: GyroscopeConfig.Sensitivity) void {
+        self.accel_sensitivity = accel_sensitivity;
+        self.gyro_sensitivity = gyro_sensitivity;
+
+        self.writeReg(AccelerometerConfig{
+            .afs_sel = self.accel_sensitivity,
+            .x_self_test = 0,
+            .y_self_test = 0,
+            .z_self_test = 0,
+        });
+
+        self.writeReg(GyroscopeConfig{
+            .fs_sel = self.gyro_sensitivity,
+            .x_self_test = 0,
+            .y_self_test = 0,
+            .z_self_test = 0,
+        });
     }
 
     fn calibrateAccelerometer(self: *Self) void {
@@ -153,6 +204,22 @@ pub const MPU6050 = struct {
         stdio.print("Calibrate...\n", .{});
         self.calibrateAccelerometer();
         self.calibrateGyro();
+    }
+
+    pub fn readReg(self: *Self, Reg: type) Reg {
+        const addr: u8 = Reg.address;
+        self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .restart);
+
+        var reg: Reg = undefined;
+        self.i2c.readBlocking(i2c_addr, @ptrCast(&reg), @bitSizeOf(Reg) / 8, .stop);
+        return reg;
+    }
+
+    pub fn writeReg(self: *Self, reg: anytype) void {
+        const Reg = @TypeOf(reg);
+        const addr: u8 = Reg.address;
+        self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .burst);
+        self.i2c.writeBlocking(i2c_addr, @ptrCast(&reg), @bitSizeOf(Reg) / 8, .stop);
     }
 
     pub const AccelOffset = packed struct {
@@ -260,13 +327,26 @@ pub const MPU6050 = struct {
     pub const GyroscopeConfig = packed struct {
         const address = 0x1B;
 
-        reserved0: u3 = 0,
-        fs_sel: enum(u2) {
+        const Sensitivity = enum(u2) {
             sel_250deg_sec = 0,
             sel_500deg_sec = 1,
             sel_1000deg_sec = 2,
             sel_2000deg_sec = 3,
-        },
+
+            fn rawToDegPerSec(self: Sensitivity, raw: i16) f32 {
+                //normalized val
+                const val: f32 = @as(f32, @floatFromInt(raw)) / @as(f32, @floatFromInt(std.math.maxInt(i16)));
+                return switch (self) {
+                    .sel_250deg_sec => val * 250.0,
+                    .sel_500deg_sec => val * 500.0,
+                    .sel_1000deg_sec => val * 1000.0,
+                    .sel_2000deg_sec => val * 2000.0,
+                };
+            }
+        };
+
+        reserved0: u3 = 0,
+        fs_sel: Sensitivity,
         z_self_test: u1,
         y_self_test: u1,
         x_self_test: u1,
@@ -275,13 +355,26 @@ pub const MPU6050 = struct {
     pub const AccelerometerConfig = packed struct {
         const address = 0x1C;
 
-        reserved0: u3 = 0,
-        afs_sel: enum(u2) {
+        const Sensitivity = enum(u2) {
             sel_2g = 0,
             sel_4g = 1,
             sel_8g = 2,
             sel_16g = 3,
-        },
+
+            fn rawToGram(self: Sensitivity, raw: i16) f32 {
+                //normalized val
+                const val: f32 = @as(f32, @floatFromInt(raw)) / @as(f32, @floatFromInt(std.math.maxInt(i16)));
+                return switch (self) {
+                    .sel_2g => val * 2.0,
+                    .sel_4g => val * 4.0,
+                    .sel_8g => val * 8.0,
+                    .sel_16g => val * 16.0,
+                };
+            }
+        };
+
+        reserved0: u3 = 0,
+        afs_sel: Sensitivity,
         z_self_test: u1,
         y_self_test: u1,
         x_self_test: u1,
