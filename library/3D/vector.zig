@@ -130,6 +130,13 @@ pub const Vector = struct {
         // Roll is inline with final rotor
         return self.rotate(pitch_axis, pitch).rotate(yaw_axis, yaw);
     }
+
+    pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt; // autofix
+        _ = options;
+
+        try std.fmt.format(writer, "Vec3{{{d: >12.6}, {d: >12.6}, {d: >12.6}}}", .{ self.x(), self.y(), self.z() });
+    }
 };
 
 const expect = std.testing.expect;
