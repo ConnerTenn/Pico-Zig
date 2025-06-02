@@ -1,1 +1,0 @@
-pub const Quaternion = struct {};
