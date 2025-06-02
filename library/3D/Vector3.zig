@@ -118,6 +118,20 @@ pub fn rotate(self: *const Vector3, axis: Vector3, angle: f32) Vector3 {
     );
 }
 
+pub fn angleBetween(self: *const Vector3, other: Vector3) f32 {
+    return math.acos(self.normalize().dot(other.normalize()));
+}
+
+pub fn approxEqAbs(self: *const Vector3, other: Vector3, tolerance: f32) bool {
+    return math.approxEqAbs(f32, self.x(), other.x(), tolerance) and
+        math.approxEqAbs(f32, self.y(), other.y(), tolerance) and
+        math.approxEqAbs(f32, self.z(), other.z(), tolerance);
+}
+
+pub fn approxAlignedAbs(self: *const Vector3, other: Vector3, tolerance: f32) bool {
+    return math.approxEqAbs(f32, self.angleBetween(other), 0.0, tolerance);
+}
+
 /// Y-Forwards
 ///
 /// Z-Up
@@ -146,17 +160,12 @@ pub fn format(self: Vector3, comptime fmt: []const u8, options: std.fmt.FormatOp
 }
 
 const expect = std.testing.expect;
-
-fn checkAligned(vec1: Vector3, vec2: Vector3, precision: f32) bool {
-    const alignment = vec1.normalize().dot(vec2.normalize());
-    std.debug.print("alignment: {}\n", .{alignment});
-    return alignment > 1.0 - precision;
-}
+const expectEqual = std.testing.expectEqual;
 
 test "trivial length" {
     const vec = Vector3.create(0.0, 1.0, 0.0);
 
-    try expect(vec.length() == 1);
+    try expectEqual(1, vec.length());
 }
 
 test "normalize" {
@@ -164,7 +173,7 @@ test "normalize" {
     const normalized = vec.normalize();
 
     try expect(@abs(normalized.length() - 1.0) < 0.001);
-    try expect(checkAligned(normalized, Vector3.create(1.0, 1.0, 1.0), 0.001));
+    try expect(normalized.approxAlignedAbs(Vector3.create(1.0, 1.0, 1.0), 0.001));
 }
 
 test "Rotate a perpendicular vector" {
@@ -172,9 +181,9 @@ test "Rotate a perpendicular vector" {
     const vec = Vector3.create(1.0, 0.0, 0.0);
 
     const result = vec.rotate(axis, math.tau / 4.0);
-    std.debug.print("result: {}\n", .{result});
+    // std.debug.print("result: {}\n", .{result});
 
-    try expect(checkAligned(result, Vector3.create(0.0, 1.0, 0.0), 0.001));
+    try expect(result.approxAlignedAbs(Vector3.create(0.0, 1.0, 0.0), 0.001));
 }
 
 test "Rotate a mixed vector" {
@@ -182,27 +191,27 @@ test "Rotate a mixed vector" {
     const vec = Vector3.create(1.0, 1.0, 1.0);
 
     const result = vec.rotate(axis, math.tau / 4.0);
-    std.debug.print("result: {}\n", .{result});
+    // std.debug.print("result: {}\n", .{result});
 
-    try expect(checkAligned(result, Vector3.create(-1.0, 1.0, 1.0), 0.001));
+    try expect(result.approxAlignedAbs(Vector3.create(-1.0, 1.0, 1.0), 0.001));
 }
 
 test "Yaw" {
     const vec = Vector3.create(0.0, 1.0, 0.0);
 
     const result = vec.rotatePitchYaw(0.0, math.tau / 8.0);
-    std.debug.print("result: {}\n", .{result});
+    // std.debug.print("result: {}\n", .{result});
 
-    try expect(checkAligned(result, Vector3.create(-1.0, 1.0, 0.0), 0.001));
+    try expect(result.approxAlignedAbs(Vector3.create(-1.0, 1.0, 0.0), 0.001));
 }
 
 test "Pitch" {
     const vec = Vector3.create(0.0, 1.0, 0.0);
 
     const result = vec.rotatePitchYaw(math.tau / 8.0, 0.0);
-    std.debug.print("result: {}\n", .{result});
+    // std.debug.print("result: {}\n", .{result});
 
-    try expect(checkAligned(result, Vector3.create(0.0, 1.0, 1.0), 0.001));
+    try expect(result.approxAlignedAbs(Vector3.create(0.0, 1.0, 1.0), 0.001));
 }
 
 test "PitchYaw" {
@@ -211,12 +220,12 @@ test "PitchYaw" {
     const angle = math.tau / 8.0;
 
     const result = vec.rotatePitchYaw(angle, angle);
-    std.debug.print("result: {}\n", .{result});
+    // std.debug.print("result: {}\n", .{result});
 
     const pitch_z_component = vec.y() * math.sin(angle);
     const pitch_y_component = vec.y() * math.cos(angle);
     const yaw_x_component = pitch_y_component * math.sin(-angle);
     const yaw_y_component = pitch_y_component * math.cos(-angle);
 
-    try expect(checkAligned(result, Vector3.create(yaw_x_component, yaw_y_component, pitch_z_component), 0.001));
+    try expect(result.approxAlignedAbs(Vector3.create(yaw_x_component, yaw_y_component, pitch_z_component), 0.001));
 }
