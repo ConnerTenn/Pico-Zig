@@ -9,7 +9,7 @@ const Vector3 = math3D.Vector3;
 const Quaternion = @This();
 pub const Vec4 = @Vector(4, f32);
 
-const VectorScalar = struct {
+const RealImag = struct {
     r: f32,
     ijk: Vector3,
 };
@@ -40,14 +40,14 @@ pub inline fn k(self: *const Quaternion) f32 {
     return self.rijk[3];
 }
 
-pub inline fn to_vector_scalar(self: Quaternion) VectorScalar {
-    return VectorScalar{
+pub inline fn toRealImag(self: Quaternion) RealImag {
+    return RealImag{
         .r = self.rijk[0],
         .ijk = Vector3{ .xyz = @shuffle(f32, self.rijk, undefined, @Vector(3, i32){ 1, 2, 3 }) },
     };
 }
 
-pub inline fn from_vector_scalar(vec_scalar: VectorScalar) Quaternion {
+pub inline fn fromRealImag(vec_scalar: RealImag) Quaternion {
     return Quaternion{
         .rijk = @shuffle(
             f32,
@@ -64,14 +64,14 @@ pub inline fn from_vector_scalar(vec_scalar: VectorScalar) Quaternion {
 
 // https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation
 pub fn mul(self: *const Quaternion, other: Quaternion) Quaternion {
-    const q1 = self.to_vector_scalar();
-    const q2 = other.to_vector_scalar();
+    const q1 = self.toRealImag();
+    const q2 = other.toRealImag();
 
-    const result = VectorScalar{
+    const result = RealImag{
         .r = q1.r * q2.r - q1.ijk.dot(q2.ijk),
-        .ijk = Vector3.create_scalar(q1.r).mul(q2.ijk).add(Vector3.create_scalar(q2.r).mul(q1.ijk)).add(q1.ijk.cross(q2.ijk)),
+        .ijk = Vector3.createScalar(q1.r).mul(q2.ijk).add(Vector3.createScalar(q2.r).mul(q1.ijk)).add(q1.ijk.cross(q2.ijk)),
     };
-    return from_vector_scalar(result);
+    return fromRealImag(result);
 }
 
 pub fn approxEqAbs(self: *const Quaternion, other: Quaternion, tolerance: f32) bool {
@@ -84,16 +84,16 @@ pub fn approxEqAbs(self: *const Quaternion, other: Quaternion, tolerance: f32) b
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 
-test "to and from VectorScalar" {
+test "to and from RealImag" {
     const quaternion = Quaternion.create(1, 2, 3, 4);
-    const vec_scalar = quaternion.to_vector_scalar();
+    const vec_scalar = quaternion.toRealImag();
     try expectEqual(
         1,
         vec_scalar.r,
     );
     try expectEqual(Vector3.create(2, 3, 4), vec_scalar.ijk);
 
-    const recovered = from_vector_scalar(vec_scalar);
+    const recovered = fromRealImag(vec_scalar);
 
     try expectEqual(quaternion, recovered);
 }

@@ -12,7 +12,7 @@ pub fn create(x_val: f32, y_val: f32, z_val: f32) Vector3 {
     };
 }
 
-pub fn create_scalar(scalar: f32) Vector3 {
+pub fn createScalar(scalar: f32) Vector3 {
     return Vector3{
         .xyz = @as(Vec3, @splat(scalar)),
     };
@@ -101,8 +101,8 @@ pub fn rotate(self: *const Vector3, axis: Vector3, angle: f32) Vector3 {
     const inline_on_rot_axis = self.sub(inline_in_rot_plane);
 
     //Scalar vectors for sin and cos
-    const cos_vec = Vector3.create_scalar(math.cos(angle));
-    const sin_vec = Vector3.create_scalar(math.sin(angle));
+    const cos_vec = Vector3.createScalar(math.cos(angle));
+    const sin_vec = Vector3.createScalar(math.sin(angle));
 
     // cos * axis1 + sin * axis2
     // When the angle is 0, cos will be 1, passing through the vector that is inline with the original (inline_in_rot_plane)
@@ -145,7 +145,7 @@ pub fn rotatePitchYaw(self: *const Vector3, pitch: f32, yaw: f32) Vector3 {
 }
 
 pub fn integrate(self: *Vector3, higher_order: Vector3, delta_time: f32) void {
-    self.* = self.add(higher_order.mul(Vector3.create_scalar(delta_time)));
+    self.* = self.add(higher_order.mul(Vector3.createScalar(delta_time)));
 }
 
 pub fn differentiate(self: *Vector3, new_value: Vector3, delta_time: f32) Vector3 {
