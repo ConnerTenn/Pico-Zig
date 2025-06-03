@@ -90,11 +90,14 @@ pub fn normalize(self: *const Vector3) Vector3 {
 }
 
 pub fn rotate(self: *const Vector3, axis: Vector3, angle: f32) Vector3 {
+    // Normalize the axis
+    const axis_normalized = axis.normalize();
+
     // Perpendicular to self and the axis, and in the plane of rotation
-    const perpendicular_in_rot_plane = axis.cross(self.*);
+    const perpendicular_in_rot_plane = axis_normalized.cross(self.*);
     // Inline with the vector, but in the plane of rotation
     // This is essentially the vector projected onto the rotation plane
-    const inline_in_rot_plane = perpendicular_in_rot_plane.cross(axis);
+    const inline_in_rot_plane = perpendicular_in_rot_plane.cross(axis_normalized);
 
     // The vector projected onto the axis of rotation
     // This could also be achieved with a dot product
@@ -132,9 +135,9 @@ pub fn approxAlignedAbs(self: *const Vector3, other: Vector3, tolerance: f32) bo
     return math.approxEqAbs(f32, self.angleBetween(other), 0.0, tolerance);
 }
 
-/// Y-Forwards
+/// Y: Forwards
 ///
-/// Z-Up
+/// Z: Up
 pub fn rotatePitchYaw(self: *const Vector3, pitch: f32, yaw: f32) Vector3 {
     // const roll_axis = Vector3.create(0.0, 1.0, 0.0);
     const pitch_axis = Vector3.create(1.0, 0.0, 0.0);

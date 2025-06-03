@@ -24,6 +24,37 @@ pub fn create(r_val: f32, i_val: f32, j_val: f32, k_val: f32) Quaternion {
     };
 }
 
+pub fn fromVector(vec: Vector3) Quaternion {
+    return fromRealImag(RealImag{
+        .r = 0.0,
+        .ijk = vec,
+    });
+}
+
+pub fn fromAxisAngle(axis: Vector3, angle: f32) Quaternion {
+    const half_angle = angle / 2.0;
+    return fromRealImag(RealImag{
+        .r = @cos(half_angle),
+        .ijk = axis.normalize().mul(Vector3.createScalar(@sin(half_angle))),
+    });
+}
+
+/// Y: Forward
+///
+/// Z: Up
+pub fn fromRollPitchYaw(roll: f32, pitch: f32, yaw: f32) Quaternion {
+    return fromAxisAngle(
+        Vector3.create(0.0, 0.0, 1.0),
+        yaw,
+    ).mul(fromAxisAngle(
+        Vector3.create(1.0, 0.0, 0.0),
+        pitch,
+    ).mul(fromAxisAngle(
+        Vector3.create(0.0, 1.0, 0.0),
+        roll,
+    )));
+}
+
 pub inline fn r(self: *const Quaternion) f32 {
     return self.rijk[0];
 }
@@ -58,6 +89,12 @@ pub inline fn fromRealImag(vec_scalar: RealImag) Quaternion {
     };
 }
 
+pub fn inverse(self: *const Quaternion) Quaternion {
+    return Quaternion{
+        .rijk = self.rijk * Vec4{ 1.0, -1.0, -1.0, -1.0 },
+    };
+}
+
 // pub fn add(self: *const Quaternion, other: Quaternion) Quaternion {
 //     return self.rijk + other.rijk;
 // }
@@ -72,6 +109,12 @@ pub fn mul(self: *const Quaternion, other: Quaternion) Quaternion {
         .ijk = Vector3.createScalar(q1.r).mul(q2.ijk).add(Vector3.createScalar(q2.r).mul(q1.ijk)).add(q1.ijk.cross(q2.ijk)),
     };
     return fromRealImag(result);
+}
+
+pub fn rotateVector(self: *const Quaternion, vec: Vector3) Vector3 {
+    const result = self.mul(fromVector(vec)).mul(self.inverse());
+
+    return result.toRealImag().ijk;
 }
 
 pub fn approxEqAbs(self: *const Quaternion, other: Quaternion, tolerance: f32) bool {
@@ -192,4 +235,92 @@ test "k*i" {
         1,
         0,
     ), 0.001));
+}
+
+test "inverse" {
+    const quaternion = Quaternion.create(0.5, 0.2, -0.7, 0.1);
+    const result = quaternion.inverse();
+    try expect(result.approxEqAbs(Quaternion.create(
+        0.5,
+        -0.2,
+        0.7,
+        -0.1,
+    ), 0.001));
+}
+
+test "rotate yaw" {
+    const axis = Vector3.create(0, 0, 1);
+    const angle = math.tau * 0.25;
+    const quaternion = Quaternion.fromAxisAngle(axis, angle);
+
+    const point = Vector3.create(1, 0, 0);
+    const expected = Vector3.create(0, 1, 0);
+
+    const result_quaternion = quaternion.rotateVector(point);
+    try expect(result_quaternion.approxEqAbs(expected, 0.001));
+
+    const result_vector = point.rotate(axis, angle);
+    try expect(result_vector.approxEqAbs(expected, 0.001));
+}
+
+test "rotate pitch" {
+    const axis = Vector3.create(1, 0, 0);
+    const angle = math.tau * 0.25;
+    const quaternion = Quaternion.fromAxisAngle(axis, angle);
+
+    const point = Vector3.create(0, 1, 0);
+    const expected = Vector3.create(0, 0, 1);
+
+    const result_quaternion = quaternion.rotateVector(point);
+    try expect(result_quaternion.approxEqAbs(expected, 0.001));
+
+    const result_vector = point.rotate(axis, angle);
+    try expect(result_vector.approxEqAbs(expected, 0.001));
+}
+
+test "rotate roll" {
+    const axis = Vector3.create(0, 1, 0);
+    const angle = math.tau * 0.25;
+    const quaternion = Quaternion.fromAxisAngle(axis, angle);
+
+    const point = Vector3.create(1, 0, 0);
+    const expected = Vector3.create(0, 0, -1);
+
+    const result_quaternion = quaternion.rotateVector(point);
+    try expect(result_quaternion.approxEqAbs(expected, 0.001));
+
+    const result_vector = point.rotate(axis, angle);
+    try expect(result_vector.approxEqAbs(expected, 0.001));
+}
+
+test "rotate off axis" {
+    const axis = Vector3.create(1, 1, 1);
+    const angle = math.tau * 0.87;
+    const quaternion = Quaternion.fromAxisAngle(axis, angle);
+
+    const point = Vector3.create(-1.79, 2.46, 0.88);
+
+    const expected = point.rotate(axis, angle);
+    const result = quaternion.rotateVector(point);
+    // std.debug.print("expected: {}\n", .{expected});
+    // std.debug.print("result: {}\n", .{result});
+    try expect(result.approxEqAbs(expected, 0.001));
+}
+
+test "RollPitchYaw" {
+    const point = Vector3.create(0.0, 0.0, 1.0);
+
+    const roll = math.tau / 8.0;
+    const pitch = math.tau / 5.6;
+    const yaw = math.tau / 2.7;
+    const quaternion = Quaternion.fromRollPitchYaw(roll, pitch, yaw);
+
+    const result = quaternion.rotateVector(point);
+
+    const expected = point
+        .rotate(Vector3.create(0, 1, 0), roll)
+        .rotate(Vector3.create(1, 0, 0), pitch)
+        .rotate(Vector3.create(0, 0, 1), yaw);
+
+    try expect(result.approxAlignedAbs(expected, 0.001));
 }
