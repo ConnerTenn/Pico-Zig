@@ -41,6 +41,8 @@ pub fn fromAxisAngle(axis: Vector3, angle: f32) Quaternion {
 
 /// Y: Forward
 ///
+/// X: Right
+///
 /// Z: Up
 pub fn fromRollPitchYaw(roll: f32, pitch: f32, yaw: f32) Quaternion {
     return fromAxisAngle(
@@ -53,6 +55,19 @@ pub fn fromRollPitchYaw(roll: f32, pitch: f32, yaw: f32) Quaternion {
         Vector3.create(0.0, 1.0, 0.0),
         roll,
     )));
+}
+
+/// Y: Forward
+///
+/// X: Right
+///
+/// Z: Up
+pub fn fromEulerAngles(x: f32, y: f32, z: f32) Quaternion {
+    const pitch = x;
+    const roll = y;
+    const yaw = z;
+
+    return fromRollPitchYaw(roll, pitch, yaw);
 }
 
 pub inline fn r(self: *const Quaternion) f32 {
