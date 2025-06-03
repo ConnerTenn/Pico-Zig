@@ -16,7 +16,7 @@ const RealImag = struct {
 
 // r represents the 'real' component
 // The rest are standard quaternion component naming
-rijk: Vec4 = @splat(0.0),
+rijk: Vec4 = Vec4{ 1, 0, 0, 0 },
 
 pub fn create(r_val: f32, i_val: f32, j_val: f32, k_val: f32) Quaternion {
     return Quaternion{
@@ -122,6 +122,13 @@ pub fn approxEqAbs(self: *const Quaternion, other: Quaternion, tolerance: f32) b
         math.approxEqAbs(f32, self.i(), other.i(), tolerance) and
         math.approxEqAbs(f32, self.j(), other.j(), tolerance) and
         math.approxEqAbs(f32, self.k(), other.k(), tolerance);
+}
+
+pub fn format(self: Quaternion, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    _ = fmt; // autofix
+    _ = options;
+
+    try std.fmt.format(writer, "Quaternion{{{d: >12.6}, {d: >12.6}, {d: >12.6}, {d: >12.6}}}", .{ self.r(), self.i(), self.j(), self.k() });
 }
 
 const expect = std.testing.expect;
