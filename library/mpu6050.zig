@@ -16,9 +16,14 @@ pub const MPU6050 = struct {
 
     i2c: hardware.i2c.I2C,
 
+    accel_sensitivity: AccelerometerConfig.Sensitivity,
+    gyro_sensitivity: GyroscopeConfig.Sensitivity,
+
     pub fn create(i2c: hardware.i2c.I2C) Self {
         return Self{
             .i2c = i2c,
+            .accel_sensitivity = .sel_2g,
+            .gyro_sensitivity = .sel_2000deg_sec,
         };
     }
 
@@ -38,6 +43,7 @@ pub const MPU6050 = struct {
         //     .fifo_overflow_enable = 0,
         //     .motion_enable = 0,
         // });
+        self.setSensitivity(self.accel_sensitivity, self.gyro_sensitivity);
     }
 
     pub fn reset(self: *Self) void {
@@ -51,7 +57,7 @@ pub const MPU6050 = struct {
         });
         csdk.sleep_ms(100); // Allow device to reset and stabilize
 
-        self.writeReg(pico.library.mpu6050.MPU6050.SignalPathReset{
+        self.writeReg(SignalPathReset{
             .temp_reset = 1,
             .accel_reset = 1,
             .gyro_reset = 1,
@@ -90,6 +96,148 @@ pub const MPU6050 = struct {
         };
     }
 
+    /// Measured in [g] or 9.81[m/s/s]
+    pub const AccelData = struct {
+        x: f32 = 0.0,
+        y: f32 = 0.0,
+        z: f32 = 0.0,
+
+        fn fromRawXYZ(raw_xyz: RawXYZData, sensitivity: AccelerometerConfig.Sensitivity) AccelData {
+            return AccelData{
+                .x = sensitivity.rawToG(raw_xyz.x),
+                .y = sensitivity.rawToG(raw_xyz.y),
+                .z = sensitivity.rawToG(raw_xyz.z),
+            };
+        }
+    };
+
+    /// Measured in [deg/s]
+    pub const GyroData = struct {
+        x: f32 = 0.0,
+        y: f32 = 0.0,
+        z: f32 = 0.0,
+
+        fn fromRawXYZ(raw_xyz: RawXYZData, sensitivity: GyroscopeConfig.Sensitivity) GyroData {
+            return GyroData{
+                .x = sensitivity.rawToDegPerSec(raw_xyz.x),
+                .y = sensitivity.rawToDegPerSec(raw_xyz.y),
+                .z = sensitivity.rawToDegPerSec(raw_xyz.z),
+            };
+        }
+    };
+
+    pub const ImuData = struct {
+        accel: AccelData = AccelData{},
+        gyro: GyroData = GyroData{},
+    };
+
+    pub fn getImuData(self: *Self) ImuData {
+        const raw_imu_data = self.getRawImuData();
+
+        return ImuData{
+            .accel = AccelData.fromRawXYZ(raw_imu_data.accel, self.accel_sensitivity),
+            .gyro = GyroData.fromRawXYZ(raw_imu_data.gyro, self.gyro_sensitivity),
+        };
+    }
+
+    pub fn setSensitivity(self: *Self, accel_sensitivity: AccelerometerConfig.Sensitivity, gyro_sensitivity: GyroscopeConfig.Sensitivity) void {
+        self.accel_sensitivity = accel_sensitivity;
+        self.gyro_sensitivity = gyro_sensitivity;
+
+        self.writeReg(AccelerometerConfig{
+            .afs_sel = self.accel_sensitivity,
+            .x_self_test = 0,
+            .y_self_test = 0,
+            .z_self_test = 0,
+        });
+
+        self.writeReg(GyroscopeConfig{
+            .fs_sel = self.gyro_sensitivity,
+            .x_self_test = 0,
+            .y_self_test = 0,
+            .z_self_test = 0,
+        });
+    }
+
+    pub fn getSampleRateHz(self: *Self) f32 {
+        const gyro_output_rate = self.readReg(GeneralConfig).getGyroOutputRateHz();
+        const sample_rate_div = self.readReg(SampleRateDivider).sample_rate_divider;
+        return @as(f32, @floatFromInt(gyro_output_rate)) / (1.0 + @as(f32, @floatFromInt(sample_rate_div)));
+    }
+
+    fn calibrateAccelerometer(self: *Self) void {
+        // stdio.print("calibrateAccelerometer...\n", .{});
+        const afs_sel = self.readReg(AccelerometerConfig).afs_sel;
+
+        // The influence of gravity must be subtracted during calibration
+        const raw_1g: i16 = switch (afs_sel) {
+            .sel_2g => std.math.maxInt(i16) / 2,
+            .sel_4g => std.math.maxInt(i16) / 4,
+            .sel_8g => std.math.maxInt(i16) / 8,
+            .sel_16g => std.math.maxInt(i16) / 16,
+        };
+
+        const div_factor: i16 = switch (afs_sel) {
+            .sel_2g => 16, //Most sensitive
+            .sel_4g => 8,
+            .sel_8g => 4,
+            .sel_16g => 2,
+        };
+
+        // Loop to slowly refine the offset calibration value
+        for (0..50) |_| {
+            const prev_offset = self.readReg(AccelOffset).getOffsets();
+            const accel = self.readReg(AccelerometerRegisters).getXYZ();
+            // stdio.print("prev_offset: {}\n", .{prev_offset});
+            // stdio.print("accel: {}\n", .{accel});
+
+            // The target acceleration is 0 (we assume the sensor is not moving), therefore it is the 'error'.
+            // Subtract some of the error each loop
+            const offset = RawXYZData{
+                .x = prev_offset.x - @divTrunc(accel.x, div_factor),
+                .y = prev_offset.y - @divTrunc(accel.y, div_factor),
+                .z = prev_offset.z - @divTrunc(accel.z - raw_1g, div_factor), //Assume gravity is acting through the z axis
+            };
+            // stdio.print("offset: {}\n", .{offset});
+            // stdio.print("\n", .{});
+
+            self.writeReg(AccelOffset.fromXYZData(offset));
+        }
+    }
+
+    fn calibrateGyro(self: *Self) void {
+        const div_factor: i16 = switch (self.readReg(GyroscopeConfig).fs_sel) {
+            .sel_250deg_sec => 2,
+            .sel_500deg_sec => 2,
+            .sel_1000deg_sec => 4,
+            .sel_2000deg_sec => 4, //Most sensitive
+        };
+
+        // Loop to slowly refine the offset calibration value
+        for (0..50) |_| {
+            const prev_offset = self.readReg(GyroOffset).getOffsets();
+            const gyro = self.readReg(GyroscopeRegisters).getXYZ();
+
+            // The target acceleration is 0 (we assume the sensor is not moving), therefore it is the 'error'.
+            // Subtract some of the error each loop
+            const offset = RawXYZData{
+                .x = prev_offset.x - @divTrunc(gyro.x, div_factor),
+                .y = prev_offset.y - @divTrunc(gyro.y, div_factor),
+                .z = prev_offset.z - @divTrunc(gyro.z, div_factor),
+            };
+            // stdio.print("Offset: {}\n", .{offset});
+
+            self.writeReg(GyroOffset.fromXYZData(offset));
+        }
+    }
+
+    pub fn calibrate(self: *Self) void {
+        // stdio.print("Pre Calibrate: {}\n", .{self.readReg(AccelOffset).getOffsets()});
+        stdio.print("Calibrate...\n", .{});
+        self.calibrateAccelerometer();
+        self.calibrateGyro();
+    }
+
     pub fn readReg(self: *Self, Reg: type) Reg {
         const addr: u8 = Reg.address;
         self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .restart);
@@ -104,55 +252,6 @@ pub const MPU6050 = struct {
         const addr: u8 = Reg.address;
         self.i2c.writeBlocking(i2c_addr, @ptrCast(&addr), 1, .burst);
         self.i2c.writeBlocking(i2c_addr, @ptrCast(&reg), @bitSizeOf(Reg) / 8, .stop);
-    }
-
-    fn calibrateAccelerometer(self: *Self) void {
-        // The influence of gravity must be subtracted during calibration
-        const full_scale_val = self.readReg(AccelerometerConfig).afs_sel;
-        const gravity: i16 = @as(i16, 16384) >> @intFromEnum(full_scale_val);
-
-        // Loop to slowly refine the offset calibration value
-        for (0..50) |_| {
-            const prev_offset = self.readReg(AccelOffset).getOffsets();
-            const accel = self.readReg(AccelerometerRegisters).getXYZ();
-
-            // The target acceleration is 0 (we assume the sensor is not moving), therefore it is the 'error'.
-            // Subtract half the error each loop
-            const offset = RawXYZData{
-                .x = prev_offset.x - @divTrunc(accel.x, 2),
-                .y = prev_offset.y - @divTrunc(accel.y, 2),
-                .z = prev_offset.z - @divTrunc(accel.z - gravity, 2), //Assume gravity is acting through the z axis
-            };
-            // stdio.print("Offset: {}\n", .{offset});
-
-            self.writeReg(AccelOffset.fromXYZData(offset));
-        }
-    }
-
-    fn calibrateGyro(self: *Self) void {
-        // Loop to slowly refine the offset calibration value
-        for (0..50) |_| {
-            const prev_offset = self.readReg(GyroOffset).getOffsets();
-            const gyro = self.readReg(GyroscopeRegisters).getXYZ();
-
-            // The target acceleration is 0 (we assume the sensor is not moving), therefore it is the 'error'.
-            // Subtract half the error each loop
-            const offset = RawXYZData{
-                .x = prev_offset.x - @divTrunc(gyro.x, 2),
-                .y = prev_offset.y - @divTrunc(gyro.y, 2),
-                .z = prev_offset.z - @divTrunc(gyro.z, 2),
-            };
-            // stdio.print("Offset: {}\n", .{offset});
-
-            self.writeReg(GyroOffset.fromXYZData(offset));
-        }
-    }
-
-    pub fn calibrate(self: *Self) void {
-        // stdio.print("Pre Calibrate: {}\n", .{self.readReg(AccelOffset).getOffsets()});
-        stdio.print("Calibrate...\n", .{});
-        self.calibrateAccelerometer();
-        self.calibrateGyro();
     }
 
     pub const AccelOffset = packed struct {
@@ -249,24 +348,50 @@ pub const MPU6050 = struct {
         }
     };
 
+    pub const SampleRateDivider = packed struct {
+        const address = 0x19;
+
+        sample_rate_divider: u8,
+    };
+
     pub const GeneralConfig = packed struct {
         const address = 0x1A;
 
         digital_filter_config: u3,
         ext_sync_set: u3,
         reserved0: u2 = 0,
+
+        fn getGyroOutputRateHz(self: GeneralConfig) u16 {
+            return switch (self.digital_filter_config) {
+                0, 7 => 8000,
+                1, 2, 3, 4, 5, 6 => 1000,
+            };
+        }
     };
 
     pub const GyroscopeConfig = packed struct {
         const address = 0x1B;
 
-        reserved0: u3 = 0,
-        fs_sel: enum(u2) {
+        const Sensitivity = enum(u2) {
             sel_250deg_sec = 0,
             sel_500deg_sec = 1,
             sel_1000deg_sec = 2,
             sel_2000deg_sec = 3,
-        },
+
+            fn rawToDegPerSec(self: Sensitivity, raw: i16) f32 {
+                //normalized val
+                const val: f32 = @as(f32, @floatFromInt(raw)) / @as(f32, @floatFromInt(std.math.maxInt(i16)));
+                return switch (self) {
+                    .sel_250deg_sec => val * 250.0,
+                    .sel_500deg_sec => val * 500.0,
+                    .sel_1000deg_sec => val * 1000.0,
+                    .sel_2000deg_sec => val * 2000.0,
+                };
+            }
+        };
+
+        reserved0: u3 = 0,
+        fs_sel: Sensitivity,
         z_self_test: u1,
         y_self_test: u1,
         x_self_test: u1,
@@ -275,13 +400,26 @@ pub const MPU6050 = struct {
     pub const AccelerometerConfig = packed struct {
         const address = 0x1C;
 
-        reserved0: u3 = 0,
-        afs_sel: enum(u2) {
+        const Sensitivity = enum(u2) {
             sel_2g = 0,
             sel_4g = 1,
             sel_8g = 2,
             sel_16g = 3,
-        },
+
+            fn rawToG(self: Sensitivity, raw: i16) f32 {
+                //normalized val
+                const val: f32 = @as(f32, @floatFromInt(raw)) / @as(f32, @floatFromInt(std.math.maxInt(i16)));
+                return switch (self) {
+                    .sel_2g => val * 2.0,
+                    .sel_4g => val * 4.0,
+                    .sel_8g => val * 8.0,
+                    .sel_16g => val * 16.0,
+                };
+            }
+        };
+
+        reserved0: u3 = 0,
+        afs_sel: Sensitivity,
         z_self_test: u1,
         y_self_test: u1,
         x_self_test: u1,
