@@ -129,6 +129,7 @@ pub const csdk = @cImport({
 
     // @cInclude("stdio.h");
     @cInclude("pico/stdlib.h");
+    @cInclude("pico/multicore.h");
     // @cInclude("hardware/pll.h");
     @cInclude("hardware/clocks.h");
     @cInclude("hardware/gpio.h");

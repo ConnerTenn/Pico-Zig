@@ -6,3 +6,4 @@ pub const i2c = @import("i2c.zig");
 pub const dma = @import("dma.zig");
 pub const irq = @import("irq.zig");
 pub const clocks = @import("clocks.zig");
+pub const multicore = @import("multicore.zig");
