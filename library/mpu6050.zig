@@ -110,9 +110,9 @@ pub const MPU6050 = struct {
 
         fn accelFromRawXYZ(raw_xyz: RawXYZData, sensitivity: AccelerometerConfig.Sensitivity) Vector3 {
             return Vector3.create(
-                sensitivity.rawToG(raw_xyz.x),
-                sensitivity.rawToG(raw_xyz.y),
-                sensitivity.rawToG(raw_xyz.z),
+                -sensitivity.rawToG(raw_xyz.x),
+                -sensitivity.rawToG(raw_xyz.y),
+                -sensitivity.rawToG(raw_xyz.z),
             );
         }
 
@@ -211,8 +211,6 @@ pub const MPU6050 = struct {
         averages.accel = averages.accel.div(Vector3.createScalar(@as(f32, @floatFromInt(measure_loops))));
         averages.gyro = averages.gyro.div(Vector3.createScalar(@as(f32, @floatFromInt(measure_loops))));
         stdio.print("averages: {}\n", .{averages});
-
-        while (true) {}
     }
 
     pub fn readReg(self: *Self, Reg: type) Reg {
