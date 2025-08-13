@@ -2,6 +2,10 @@ const std = @import("std");
 const pico = @import("pico.zig");
 const csdk = pico.csdk;
 
+pub fn init() void {
+    _ = pico.csdk.stdio_init_all();
+}
+
 fn writeFn(context: *const anyopaque, bytes: []const u8) anyerror!usize {
     _ = context; // autofix
     const len = csdk.stdio_put_string(bytes.ptr, @intCast(bytes.len), false, false);

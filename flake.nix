@@ -9,7 +9,7 @@
   description = "A library for making it easier to using zig with the Pi Pico.";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-24.11";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
