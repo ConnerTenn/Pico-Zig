@@ -8,7 +8,7 @@ pub const PicoTargets = enum {
 
 const CpuFeature = std.Target.Cpu.Feature;
 const CpuModel = std.Target.Cpu.Model;
-const featureSet = CpuFeature.feature_set_fns(std.Target.arm.Feature).featureSet;
+const featureSet = CpuFeature.FeatureSetFns(std.Target.arm.Feature).featureSet;
 
 pub const rp2040_target = std.Target.Query{
     .os_tag = .freestanding,
@@ -32,13 +32,59 @@ pub const rp2350_target = std.Target.Query{
     .abi = .eabi,
 };
 
-pub const Options = struct {
-    target: PicoTargets,
-};
+pub fn build(
+    build_config: *Build,
+    name: []const u8,
+    root_source_file: Build.LazyPath,
+    default_optimize_mode: std.builtin.OptimizeMode,
+) void {
+    // == Get Options ==
+    const target_arg = build_config.option(
+        PicoTargets,
+        "pico-target",
+        "Select which pico you want to target",
+    ) orelse {
+        @panic("You must select a pico target");
+    };
 
-pub fn configureOptions(build_config: *Build, module: *Build.Module, options: Options) void {
+    // == Create the static libarary ==
+    const options = Build.StaticLibraryOptions{
+        .name = name,
+        .optimize = build_config.standardOptimizeOption(Build.StandardOptimizeOptionOptions{
+            .preferred_optimize_mode = default_optimize_mode,
+        }),
+        .target = build_config.resolveTargetQuery(switch (target_arg) {
+            .rp2040 => rp2040_target,
+            .rp2350 => rp2350_target,
+        }),
+        .root_source_file = root_source_file,
+    };
+
+    const lib = build_config.addStaticLibrary(options);
+
+    // == Add the pico module ==
+    const pico_module = build_config.addModule("pico", .{
+        .root_source_file = build_config.path("Pico-Zig/pico.zig"),
+    });
+
+    configureOptions(build_config, pico_module, target_arg);
+
+    lib.root_module.addImport("pico", pico_module);
+
+    // == Add the required includes ==
+    addPicoIncludes(build_config, pico_module, target_arg);
+    addArmIncludes(build_config, pico_module);
+
+    // == Define the install artifact ==
+    const lib_artifact = build_config.addInstallArtifact(lib, .{});
+
+    const build_step = build_config.step("build", "Build the application static library");
+    build_step.dependOn(&lib_artifact.step);
+}
+
+pub fn configureOptions(build_config: *Build, module: *Build.Module, target: PicoTargets) void {
     const config_options = build_config.addOptions();
-    config_options.addOption(PicoTargets, "target", options.target);
+    config_options.addOption(PicoTargets, "target", target);
     module.addOptions("config", config_options);
 }
 
@@ -145,6 +191,7 @@ pub fn addPicoIncludes(build_config: *Build, module: *Build.Module, target: Pico
         "./pico-sdk/src/rp2_common/pico_mbedtls/include",
         "./pico-sdk/src/rp2_common/pico_mem_ops/include",
         "./pico-sdk/src/rp2_common/pico_multicore/include",
+        "./pico-sdk/src/rp2_common/pico_platform_common/include",
         "./pico-sdk/src/rp2_common/pico_platform_compiler/include",
         "./pico-sdk/src/rp2_common/pico_platform_panic/include",
         "./pico-sdk/src/rp2_common/pico_platform_sections/include",
