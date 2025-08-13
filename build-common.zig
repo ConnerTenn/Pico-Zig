@@ -34,7 +34,6 @@ pub const rp2350_target = std.Target.Query{
 
 pub fn build(
     build_config: *Build,
-    name: []const u8,
     root_source_file: Build.LazyPath,
     default_optimize_mode: std.builtin.OptimizeMode,
 ) void {
@@ -46,10 +45,17 @@ pub fn build(
     ) orelse {
         @panic("You must select a pico target");
     };
+    const name_arg = build_config.option(
+        []const u8,
+        "project-name",
+        "Configure the name of the project",
+    ) orelse {
+        @panic("You must provide a project name");
+    };
 
     // == Create the static libarary ==
     const options = Build.StaticLibraryOptions{
-        .name = name,
+        .name = name_arg,
         .optimize = build_config.standardOptimizeOption(Build.StandardOptimizeOptionOptions{
             .preferred_optimize_mode = default_optimize_mode,
         }),
