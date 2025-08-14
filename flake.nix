@@ -29,6 +29,7 @@
             git
             cmake
             gcc-arm-embedded-13
+            picocom
           ];
         };
       }
