@@ -57,6 +57,7 @@ help:
 	@echo "  serial               - Connect to the serial term"
 	@echo "  program-then-serial  - Program the pico and then automatically connect to serial"
 	@echo "  lsblk                - Monitor lsblk"
+	@echo "  examples             - Download the examples"
 	@echo "  clean                - Clean build products"
 	@echo "  clean-all            - Clean everything"
 	@echo
@@ -68,30 +69,40 @@ env: ${RUN_DIR}/flake.nix
 .PHONY:build
 build: $(BIN)
 
+.PHONY: test
 test:
 	zig test Pico-Zig/test.zig
 
-lsblk:
-	watch -n 0 lsblk -T -o NAME,SIZE,MOUNTPOINTS,LABEL
-
-program: $(BIN)
+.PHONY: program
+program: | $(BIN)
 	sudo mount -o uid=$(shell id -u),gid=$(shell id -g) $(PICO_DEV) $(MNT_DIR)
 	cp $(BIN) $(MNT_DIR)
 	sudo umount $(MNT_DIR)
 
+.PHONY: serial
 serial:
 	sudo picocom -b 115200 /dev/ttyACM0 --imap lfcrlf
 
+.PHONY: program-then-serial
 program-then-serial:
 	$(MAKE) program
 	sleep 1.5
 	$(MAKE) serial
 
+.PHONY: lsblk
+lsblk:
+	watch -n 0 lsblk -T -o NAME,SIZE,MOUNTPOINTS,LABEL
+
+.PHONY: examples
+examples: ${RUN_DIR}/pico-examples
+
+.PHONY: clean
 clean:
 	rm -rf ${RUN_DIR}/zig-out
 	rm -rf ${RUN_DIR}/zig-cache ${RUN_DIR}/.zig-cache
 	rm -rf $(BUILD_DIR)
 
+.PHONY: clean-all
 clean-all: clean
 	rm -rf ${RUN_DIR}/pico-sdk ${RUN_DIR}/pico-examples
 	rm -rf ${RUN_DIR}/flake.lock
@@ -109,10 +120,9 @@ $(BUILD_DIR):
 # 	cp ${FILE_DIR}/flake.nix ${RUN_DIR}
 
 # Zig build
-${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a: *.zig $(BUILD_DIR)/generated/pico_base/pico ${EXTRA_LIB_DEPENDENCIES}
-	@#zig build -freference-trace --verbose-llvm-cpu-features build
+${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a: *.zig src/*.zig | $(BUILD_DIR)/generated/pico_base/pico ${EXTRA_LIB_DEPENDENCIES}
+	#zig build -freference-trace --verbose-llvm-cpu-features build
 	zig build -freference-trace -Dpico-target=${ZIG_TARGET} -Dproject-name=${PROJECT_NAME} build
-	@echo
 
 # Repos
 ${RUN_DIR}/pico-examples:
@@ -133,9 +143,9 @@ $(BIN): ${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a ${RUN_DIR}/CMakeLists.txt | 
 	cd $(BUILD_DIR)
 	cmake .. -DPICO_SDK_PATH=${RUN_DIR}/pico-sdk -DPICO_PLATFORM:STRING="${PICO_PLATFORM}" -DPICO_BOARD:STRING="${PICO_BOARD}"
 	make -j 20 ${PROJECT_NAME}
-	@echo
-	@echo == Done ==
-	@echo
+	echo
+	echo == Done ==
+	echo
 
 
 

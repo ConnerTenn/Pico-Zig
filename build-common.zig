@@ -42,15 +42,17 @@ pub fn build(
         PicoTargets,
         "pico-target",
         "Select which pico you want to target",
-    ) orelse {
-        @panic("You must select a pico target");
+    ) orelse default: {
+        std.debug.print("Warning: You must select a pico target. Using default...", .{});
+        break :default .rp2040;
     };
     const name_arg = build_config.option(
         []const u8,
         "project-name",
         "Configure the name of the project",
-    ) orelse {
-        @panic("You must provide a project name");
+    ) orelse default: {
+        std.debug.print("Warning: You must provide a project name. Using default...", .{});
+        break :default "default";
     };
 
     // == Create the static libarary ==
