@@ -139,6 +139,9 @@ pub const csdk = @cImport({
     @cInclude("hardware/i2c.h");
     @cInclude("hardware/dma.h");
     // @cInclude("pico/time.h");
+    @cInclude("pico/cyw43_arch.h");
+    @cInclude("lwip/pbuf.h");
+    @cInclude("lwip/tcp.h");
 });
 
 // Missing GPIO coprocessor functions

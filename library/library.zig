@@ -10,3 +10,4 @@ pub const led_strip = @import("led_strip.zig");
 pub const gu128x32 = @import("gu128x32.zig");
 pub const mpu6050 = @import("mpu6050.zig");
 pub const math3D = @import("3D/math3D.zig");
+pub const network = @import("network/network.zig");

@@ -220,8 +220,11 @@ pub fn addPicoIncludes(build_config: *Build, module: *Build.Module, target: Pico
         // "./build/_deps/picotool-src/lib/include",
         // "./build/_deps/picotool-build/lib/mbedtls/include",
 
+        "./pico-sdk/lib/cyw43-driver/src",
+
         "./build/generated/pico_base",
         "./build",
+        "./",
     };
 
     const target_includes = switch (target) {
