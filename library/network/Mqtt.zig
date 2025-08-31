@@ -75,8 +75,8 @@ pub fn connect(self: *Mqtt, address: network.IpV4Addr, port: u16) !void {
         stdio.print("!MQTT Disconnected!\n", .{});
     }
 
-    // stdio.print("subTopics\n", .{});
-    // self.subTopics();
+    stdio.print("subTopics\n", .{});
+    self.subTopics();
 
     stdio.print("mqtt_set_inpub_callback\n", .{});
     csdk.mqtt_set_inpub_callback(self.mqtt_client, publishCallback, dataCallback, self);
@@ -91,6 +91,49 @@ pub fn connect(self: *Mqtt, address: network.IpV4Addr, port: u16) !void {
 
 pub fn connected(self: *Mqtt) bool {
     return csdk.mqtt_client_is_connected(self.mqtt_client) == 1;
+}
+
+pub fn subscribe(self: *Mqtt, topic: [:0]const u8, qos: QOS) !void {
+    if (network.hasError(
+        csdk.mqtt_sub_unsub(self.mqtt_client, topic.ptr, @intFromEnum(qos), subRequestCallback, self, 1),
+        "mqtt_sub_unsub() Failed",
+    )) {
+        return error.FailedToSubscribe;
+    }
+}
+
+pub fn publish(self: *Mqtt, topic: [:0]const u8, message: []const u8, qos: QOS, retain: Retain) !void {
+    stdio.print("publish {s}<-\"{s}\"\n", .{ topic, message });
+    const err = csdk.mqtt_publish(self.mqtt_client, topic.ptr, message.ptr, @intCast(message.len), @intFromEnum(qos), @intFromEnum(retain), mqttPubRequestCallback, self);
+
+    if (network.hasError(
+        err,
+        "mqtt_publish() failed",
+    )) {
+        return error.FailedToPublish;
+    }
+}
+
+fn subTopics(self: *Mqtt) void {
+    self.subscribe("test/pico/led", .AtLeastOnce) catch |err| {
+        stdio.print("Failed to subscribe: {}\n", .{err});
+        unreachable;
+    };
+
+    self.subscribe("test/pico/print", .AtLeastOnce) catch |err| {
+        stdio.print("Failed to subscribe: {}\n", .{err});
+        unreachable;
+    };
+
+    self.subscribe("test/pico/ping", .AtLeastOnce) catch |err| {
+        stdio.print("Failed to subscribe: {}\n", .{err});
+        unreachable;
+    };
+
+    self.subscribe("test/pico/exit", .AtLeastOnce) catch |err| {
+        stdio.print("Failed to subscribe: {}\n", .{err});
+        unreachable;
+    };
 }
 
 fn mqttConnectionCallback(client: ?*csdk.mqtt_client_t, arg: ?*anyopaque, status: csdk.mqtt_connection_status_t) callconv(.C) void {
@@ -114,12 +157,15 @@ fn mqttConnectionCallback(client: ?*csdk.mqtt_client_t, arg: ?*anyopaque, status
     }
     stdio.print("Connected to mqtt: {?}\n", .{client});
 
-    stdio.print("publish online\n", .{});
-    const online_msg = "pico online";
-    _ = network.hasError(
-        csdk.mqtt_publish(self.mqtt_client, "test/pico", online_msg, online_msg.len, @intFromEnum(QOS.AtLeastOnce), @intFromEnum(Retain.true), mqttPubRequestCallback, self),
-        "mqtt_publish() failed",
-    );
+    self.publish("test/pico", "online", .AtLeastOnce, .true) catch |err| {
+        stdio.print("Failed to publish: {}\n", .{err});
+        unreachable;
+    };
+    // const online_msg = "pico online";
+    // _ = network.hasError(
+    //     csdk.mqtt_publish(self.mqtt_client, "test/pico", online_msg, online_msg.len, @intFromEnum(QOS.AtLeastOnce), @intFromEnum(Retain.true), mqttPubRequestCallback, self),
+    //     "mqtt_publish() failed",
+    // );
 }
 
 fn mqttPubRequestCallback(_: ?*anyopaque, err: csdk.err_t) callconv(.C) void {
@@ -131,33 +177,6 @@ fn mqttPubRequestCallback(_: ?*anyopaque, err: csdk.err_t) callconv(.C) void {
     );
 }
 
-fn subTopics(self: *Mqtt) void {
-    if (network.hasError(
-        csdk.mqtt_sub_unsub(self.mqtt_client, "test/pico/led", @intFromEnum(QOS.AtLeastOnce), subRequestCallback, self, 1),
-        "mqtt_sub_unsub() Failed",
-    )) {
-        unreachable;
-    }
-    if (network.hasError(
-        csdk.mqtt_sub_unsub(self.mqtt_client, "test/pico/print", @intFromEnum(QOS.AtLeastOnce), subRequestCallback, self, 1),
-        "mqtt_sub_unsub() Failed",
-    )) {
-        unreachable;
-    }
-    if (network.hasError(
-        csdk.mqtt_sub_unsub(self.mqtt_client, "test/pico/ping", @intFromEnum(QOS.AtLeastOnce), subRequestCallback, self, 1),
-        "mqtt_sub_unsub() Failed",
-    )) {
-        unreachable;
-    }
-    if (network.hasError(
-        csdk.mqtt_sub_unsub(self.mqtt_client, "test/pico/exit", @intFromEnum(QOS.AtLeastOnce), subRequestCallback, self, 1),
-        "mqtt_sub_unsub() Failed",
-    )) {
-        unreachable;
-    }
-}
-
 fn subRequestCallback(arg: ?*anyopaque, err: csdk.err_t) callconv(.C) void {
     const self: *Mqtt = @alignCast(@ptrCast(arg.?));
     _ = self;
@@ -167,9 +186,13 @@ fn subRequestCallback(arg: ?*anyopaque, err: csdk.err_t) callconv(.C) void {
 
 fn publishCallback(arg: ?*anyopaque, topic: [*c]const u8, total_len: u32) callconv(.C) void {
     stdio.print("publishCallback\n", .{});
+    stdio.print("  topic: {s}\n", .{topic});
+    stdio.print("  total_len: {}\n", .{total_len});
     const self: *Mqtt = @alignCast(@ptrCast(arg.?));
 
-    self.topic = std.heap.c_allocator.alloc(u8, total_len) catch |err| {
+    const topic_len = std.mem.len(topic);
+
+    self.topic = std.heap.c_allocator.alloc(u8, topic_len) catch |err| {
         stdio.print("Failed to allocate: {?}", .{err});
         unreachable;
     };
@@ -184,8 +207,8 @@ fn dataCallback(arg: ?*anyopaque, raw_data: [*c]const u8, len: u16, flags: u8) c
     _ = self;
 
     const data: []const u8 = raw_data[0..len];
-    stdio.print("Recv Data: {s}\n", .{data});
-    stdio.print("flags: {d}\n", .{flags});
+    stdio.print("  recv data: \"{s}\"\n", .{data});
+    stdio.print("  flags: {X:02}\n", .{flags});
 
     // if (std.mem.eql(u8, self.topic, "test/pico/print")) {
 
