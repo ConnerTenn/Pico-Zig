@@ -4,6 +4,7 @@ const pico = @import("../../pico.zig");
 const csdk = pico.csdk;
 const stdio = pico.stdio;
 const network = pico.library.network;
+const global_allocator = pico.library.alloc.global_allocator;
 
 const Mqtt = @This();
 
@@ -18,8 +19,18 @@ const Retain = enum(u8) {
     true = 1,
 };
 
+pub const RecvMessageCallback = struct {
+    ctx: ?*anyopaque,
+    callback: *const fn (ctx: ?*anyopaque, topic: [:0]const u8, message: []const u8) void,
+};
+// pub const RecvMessageCallback
+
+pub const CallbackHeap = std.StringHashMap(RecvMessageCallback);
+
 mqtt_client: *csdk.mqtt_client_t,
-topic: ?[]u8,
+topic: ?[:0]u8,
+
+callbacks: CallbackHeap,
 
 pub fn new() !Mqtt {
     const mqtt_client = csdk.mqtt_client_new() orelse {
@@ -29,13 +40,14 @@ pub fn new() !Mqtt {
     return Mqtt{
         .mqtt_client = mqtt_client,
         .topic = null,
+        .callbacks = CallbackHeap.init(global_allocator),
     };
 }
 
 pub fn destroy(self: *Mqtt) void {
     // self.topic.
     if (self.topic) |topic| {
-        std.heap.c_allocator.free(topic);
+        global_allocator.free(topic);
     }
 }
 
@@ -71,13 +83,6 @@ pub fn connect(self: *Mqtt, address: network.IpV4Addr, port: u16) !void {
         return error.FailedToConnect;
     }
 
-    if (!self.connected()) {
-        stdio.print("!MQTT Disconnected!\n", .{});
-    }
-
-    stdio.print("subTopics\n", .{});
-    self.subTopics();
-
     stdio.print("mqtt_set_inpub_callback\n", .{});
     csdk.mqtt_set_inpub_callback(self.mqtt_client, publishCallback, dataCallback, self);
 
@@ -93,7 +98,13 @@ pub fn connected(self: *Mqtt) bool {
     return csdk.mqtt_client_is_connected(self.mqtt_client) == 1;
 }
 
-pub fn subscribe(self: *Mqtt, topic: [:0]const u8, qos: QOS) !void {
+pub fn subscribe(self: *Mqtt, topic: [:0]const u8, qos: QOS, callback: RecvMessageCallback) !void {
+    try self.subscribeTopic(topic, qos);
+
+    try self.callbacks.put(topic, callback);
+}
+
+fn subscribeTopic(self: *Mqtt, topic: [:0]const u8, qos: QOS) !void {
     if (network.hasError(
         csdk.mqtt_sub_unsub(self.mqtt_client, topic.ptr, @intFromEnum(qos), subRequestCallback, self, 1),
         "mqtt_sub_unsub() Failed",
@@ -112,28 +123,6 @@ pub fn publish(self: *Mqtt, topic: [:0]const u8, message: []const u8, qos: QOS, 
     )) {
         return error.FailedToPublish;
     }
-}
-
-fn subTopics(self: *Mqtt) void {
-    self.subscribe("test/pico/led", .AtLeastOnce) catch |err| {
-        stdio.print("Failed to subscribe: {}\n", .{err});
-        unreachable;
-    };
-
-    self.subscribe("test/pico/print", .AtLeastOnce) catch |err| {
-        stdio.print("Failed to subscribe: {}\n", .{err});
-        unreachable;
-    };
-
-    self.subscribe("test/pico/ping", .AtLeastOnce) catch |err| {
-        stdio.print("Failed to subscribe: {}\n", .{err});
-        unreachable;
-    };
-
-    self.subscribe("test/pico/exit", .AtLeastOnce) catch |err| {
-        stdio.print("Failed to subscribe: {}\n", .{err});
-        unreachable;
-    };
 }
 
 fn mqttConnectionCallback(client: ?*csdk.mqtt_client_t, arg: ?*anyopaque, status: csdk.mqtt_connection_status_t) callconv(.C) void {
@@ -192,11 +181,13 @@ fn publishCallback(arg: ?*anyopaque, topic: [*c]const u8, total_len: u32) callco
 
     const topic_len = std.mem.len(topic);
 
-    self.topic = std.heap.c_allocator.alloc(u8, topic_len) catch |err| {
+    const buffer = (global_allocator.alloc(u8, topic_len + 1) catch |err| {
         stdio.print("Failed to allocate: {?}", .{err});
         unreachable;
-    };
-    @memcpy(self.topic.?, topic);
+    });
+    @memcpy(buffer, topic);
+    buffer[topic_len] = 0; //Ensure sentinal termination
+    self.topic = buffer[0..topic_len :0];
 
     stdio.print("Publish: {s}\n", .{self.topic.?});
 }
@@ -204,13 +195,16 @@ fn publishCallback(arg: ?*anyopaque, topic: [*c]const u8, total_len: u32) callco
 fn dataCallback(arg: ?*anyopaque, raw_data: [*c]const u8, len: u16, flags: u8) callconv(.C) void {
     stdio.print("dataCallback\n", .{});
     const self: *Mqtt = @alignCast(@ptrCast(arg.?));
-    _ = self;
 
-    const data: []const u8 = raw_data[0..len];
-    stdio.print("  recv data: \"{s}\"\n", .{data});
+    const message: []const u8 = raw_data[0..len];
+    stdio.print("  recv datamessage: \"{s}\"\n", .{message});
     stdio.print("  flags: {X:02}\n", .{flags});
 
-    // if (std.mem.eql(u8, self.topic, "test/pico/print")) {
-
-    // }
+    if (self.topic) |topic| {
+        if (self.callbacks.get(topic)) |callback| {
+            callback.callback(callback.ctx, topic, message);
+        }
+    } else {
+        stdio.print("Error: recieved data without topic\n", .{});
+    }
 }

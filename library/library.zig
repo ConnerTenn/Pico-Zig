@@ -1,3 +1,4 @@
+pub const alloc = @import("alloc.zig");
 pub const time = @import("time.zig");
 pub const foc = @import("foc.zig");
 pub const motor = @import("motor.zig");
