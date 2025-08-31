@@ -5,11 +5,57 @@ const csdk = pico.csdk;
 const stdio = pico.stdio;
 
 pub const TcpServer = @import("TcpServer.zig");
+pub const Mqtt = @import("Mqtt.zig");
 
 pub fn init() !void {
     if (csdk.cyw43_arch_init() != 0) {
         return error.FailedToInitialize;
     }
+}
+
+pub fn enterCriticalSection() void {
+    csdk.cyw43_arch_lwip_begin();
+}
+
+pub fn exitCriticalSection() void {
+    csdk.cyw43_arch_lwip_end();
+}
+
+pub fn poll() void {
+    csdk.cyw43_arch_poll();
+}
+
+pub fn waitForWork(delay_ms: u32) void {
+    csdk.cyw43_arch_wait_for_work_until(csdk.make_timeout_time_ms(delay_ms));
+}
+
+pub fn hasError(err: csdk.err_t, comptime message: []const u8) bool {
+    if (err != csdk.ERR_OK) {
+        stdio.print(message ++ ": {s} ({})\n", .{
+            switch (err) {
+                csdk.ERR_MEM => "ERR_MEM",
+                csdk.ERR_BUF => "ERR_BUF",
+                csdk.ERR_TIMEOUT => "ERR_TIMEOUT",
+                csdk.ERR_RTE => "ERR_RTE",
+                csdk.ERR_INPROGRESS => "ERR_INPROGRESS",
+                csdk.ERR_VAL => "ERR_VAL",
+                csdk.ERR_WOULDBLOCK => "ERR_WOULDBLOCK",
+                csdk.ERR_USE => "ERR_USE",
+                csdk.ERR_ALREADY => "ERR_ALREADY",
+                csdk.ERR_ISCONN => "ERR_ISCONN",
+                csdk.ERR_CONN => "ERR_CONN",
+                csdk.ERR_IF => "ERR_IF",
+                csdk.ERR_ABRT => "ERR_ABRT",
+                csdk.ERR_RST => "ERR_RST",
+                csdk.ERR_CLSD => "ERR_CLSD",
+                csdk.ERR_ARG => "ERR_ARG",
+                else => "Unkown error value",
+            },
+            err,
+        });
+        return true;
+    }
+    return false;
 }
 
 pub fn connectToWifi(
@@ -25,8 +71,7 @@ pub fn connectToWifi(
         @ptrCast(wifi_password),
         csdk.CYW43_AUTH_WPA2_AES_PSK,
         timeout orelse 30000,
-    ) != csdk.ERR_OK) {
-        stdio.print("failed to connect.\n", .{});
+    ) != csdk.PICO_OK) {
         return error.FailedToConnect;
     } else {
         stdio.print("Connected.\n", .{});

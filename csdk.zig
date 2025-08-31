@@ -142,6 +142,7 @@ pub const csdk = @cImport({
     @cInclude("pico/cyw43_arch.h");
     @cInclude("lwip/pbuf.h");
     @cInclude("lwip/tcp.h");
+    @cInclude("lwip/apps/mqtt.h");
 });
 
 // Missing GPIO coprocessor functions

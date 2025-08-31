@@ -66,6 +66,7 @@ pub fn build(
             .rp2350 => rp2350_target,
         }),
         .root_source_file = root_source_file,
+        .link_libc = true,
     };
 
     const lib = build_config.addStaticLibrary(options);

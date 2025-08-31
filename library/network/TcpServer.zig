@@ -19,7 +19,7 @@ pub fn new(address: IpV4Addr, port: u16) !TcpServer {
 
     const err = csdk.tcp_bind(
         server_protocol_control_block,
-        &csdk.struct_ip4_addr{
+        &csdk.ip4_addr{
             .addr = address.combined,
         },
         port,
