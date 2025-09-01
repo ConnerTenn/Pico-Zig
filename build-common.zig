@@ -89,6 +89,18 @@ pub fn build(
 
     const build_step = build_config.step("build", "Build the application static library");
     build_step.dependOn(&lib_artifact.step);
+
+    // == test config ==
+    const test_config = build_config.addTest(Build.TestOptions{
+        .root_source_file = root_source_file,
+    });
+
+    test_config.root_module.addImport("pico", pico_module);
+
+    const test_artifact = build_config.addRunArtifact(test_config);
+
+    const test_step = build_config.step("test", "Run the unit tests");
+    test_step.dependOn(&test_artifact.step);
 }
 
 pub fn configureOptions(build_config: *Build, module: *Build.Module, target: PicoTargets) void {
