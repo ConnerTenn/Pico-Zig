@@ -5,7 +5,7 @@ const csdk = pico.csdk;
 const stdio = pico.stdio;
 
 pub const TcpServer = @import("TcpServer.zig");
-pub const Mqtt = @import("Mqtt.zig");
+pub const mqtt = @import("mqtt.zig");
 
 pub fn init() !void {
     if (csdk.cyw43_arch_init() != 0) {
