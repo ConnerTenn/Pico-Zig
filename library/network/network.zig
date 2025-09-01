@@ -3,6 +3,7 @@ const std = @import("std");
 const pico = @import("../../pico.zig");
 const csdk = pico.csdk;
 const stdio = pico.stdio;
+const terminal = pico.library.terminal;
 
 pub const TcpServer = @import("TcpServer.zig");
 pub const mqtt = @import("mqtt.zig");
@@ -31,7 +32,7 @@ pub fn waitForWork(delay_ms: u32) void {
 
 pub fn hasError(err: csdk.err_t, comptime message: []const u8) bool {
     if (err != csdk.ERR_OK) {
-        stdio.print(message ++ ": {s} ({})\n", .{
+        stdio.err(message ++ ": {s} ({})\n", .{
             switch (err) {
                 csdk.ERR_MEM => "ERR_MEM",
                 csdk.ERR_BUF => "ERR_BUF",
@@ -74,7 +75,7 @@ pub fn connectToWifi(
     ) != csdk.PICO_OK) {
         return error.FailedToConnect;
     } else {
-        stdio.print("Connected.\n", .{});
+        stdio.print(terminal.green ++ "Connected!\n" ++ terminal.reset, .{});
     }
 }
 

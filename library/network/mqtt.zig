@@ -4,6 +4,7 @@ const pico = @import("../../pico.zig");
 const csdk = pico.csdk;
 const stdio = pico.stdio;
 const network = pico.library.network;
+const terminal = pico.library.terminal;
 const global_allocator = pico.library.alloc.global_allocator;
 
 pub fn Mqtt(comptime client_id_topic: Topic) type {
@@ -74,7 +75,7 @@ pub fn Mqtt(comptime client_id_topic: Topic) type {
                 .will_retain = @intFromEnum(Retain.true),
             };
 
-            stdio.print("mqtt_client_connect\n", .{});
+            stdio.trace("Connect to MQTT\n", .{});
             if (network.hasError(
                 csdk.mqtt_client_connect(
                     self.mqtt_client,
@@ -86,12 +87,12 @@ pub fn Mqtt(comptime client_id_topic: Topic) type {
                     self,
                     &client_info,
                 ),
-                "Failed to connect",
+                "Failed to connect to MQTT",
             )) {
                 return error.FailedToConnect;
             }
 
-            stdio.print("mqtt_set_inpub_callback\n", .{});
+            // stdio.print("mqtt_set_inpub_callback\n", .{});
             csdk.mqtt_set_inpub_callback(self.mqtt_client, publishCallback, dataCallback, self);
         }
 
@@ -105,7 +106,7 @@ pub fn Mqtt(comptime client_id_topic: Topic) type {
                 true => client_id_topic.concat(topic),
             };
 
-            stdio.print("subscribe to {s}\n", .{subscribe_topic.getSlice()});
+            stdio.print(terminal.magenta ++ "Subscribe" ++ terminal.reset ++ " to {s}\n", .{subscribe_topic});
 
             const err = csdk.mqtt_sub_unsub(self.mqtt_client, subscribe_topic.getSlice().ptr, @intFromEnum(qos), subRequestCallback, self, 1);
 
@@ -123,7 +124,10 @@ pub fn Mqtt(comptime client_id_topic: Topic) type {
                 true => client_id_topic.concat(topic),
             };
 
-            stdio.print("publish {s}<-\"{s}\"\n", .{ publish_topic.getSlice(), message });
+            stdio.print(
+                terminal.magenta ++ "Publish" ++ terminal.reset ++ " {} <- \"" ++ terminal.bold ++ "{s}" ++ terminal.reset ++ "\"\n",
+                .{ publish_topic, message },
+            );
 
             const err = csdk.mqtt_publish(self.mqtt_client, publish_topic.getSlice().ptr, message.ptr, @intCast(message.len), @intFromEnum(qos), @intFromEnum(retain), mqttPubRequestCallback, self);
 
@@ -136,11 +140,12 @@ pub fn Mqtt(comptime client_id_topic: Topic) type {
         }
 
         fn mqttConnectionCallback(client: ?*csdk.mqtt_client_t, arg: ?*anyopaque, status: csdk.mqtt_connection_status_t) callconv(.C) void {
-            stdio.print("mqttConnectionCallback\n", .{});
+            _ = client;
+            // stdio.print("mqttConnectionCallback\n", .{});
             const self: *Self = @alignCast(@ptrCast(arg.?));
 
             if (status != csdk.MQTT_CONNECT_ACCEPTED) {
-                stdio.print("Failed to connect to mqtt: {s}\n", .{
+                stdio.err("Failed to connect to mqtt: {s}\n", .{
                     switch (status) {
                         csdk.MQTT_CONNECT_REFUSED_PROTOCOL_VERSION => "MQTT_CONNECT_REFUSED_PROTOCOL_VERSION",
                         csdk.MQTT_CONNECT_REFUSED_IDENTIFIER => "MQTT_CONNECT_REFUSED_IDENTIFIER",
@@ -154,7 +159,7 @@ pub fn Mqtt(comptime client_id_topic: Topic) type {
                 });
                 return;
             }
-            stdio.print("Connected to mqtt: {?}\n", .{client});
+            stdio.print(terminal.green ++ "Connected to mqtt!\n" ++ terminal.reset, .{});
 
             // Call connected callback
             if (self.callbacks) |callbacks| {
@@ -187,23 +192,19 @@ pub fn Mqtt(comptime client_id_topic: Topic) type {
             const self: *Self = @alignCast(@ptrCast(arg.?));
 
             if (self.active_topic != null) {
-                stdio.print("Error: active_topic must be initalized but it already exists", .{});
-                unreachable;
+                stdio.fatal("active_topic must be initalized but it already exists", .{});
             }
 
             if (self.active_message != null) {
-                stdio.print("Error: active_message must be initalized but it already exists", .{});
-                unreachable;
+                stdio.fatal("active_message must be initalized but it already exists", .{});
             }
 
             self.active_topic = Topic.initAlloc(topic) catch |err| {
-                stdio.print("Failed to init active_topic: {?}", .{err});
-                unreachable;
+                stdio.fatal("Failed to init active_topic: {?}", .{err});
             };
 
             self.active_message = MessageBuffer.init(total_len) catch |err| {
-                stdio.print("Failed to init active_message: {?}", .{err});
-                unreachable;
+                stdio.fatal("Failed to init active_message: {?}", .{err});
             };
         }
 
@@ -223,6 +224,11 @@ pub fn Mqtt(comptime client_id_topic: Topic) type {
 
                 if (flags == csdk.MQTT_DATA_FLAG_LAST) {
                     if (self.active_topic) |*active_topic| {
+                        stdio.print(
+                            terminal.magenta ++ "Recv" ++ terminal.reset ++ " {} <- \"" ++ terminal.bold ++ "{s}" ++ terminal.reset ++ "\"\n",
+                            .{ active_topic.*, active_message.getSlice() },
+                        );
+
                         // Call message callback
                         if (self.callbacks) |callbacks| {
                             callbacks.message_recv_callback(callbacks.ctx, active_topic.*, active_message.getSlice());
@@ -305,6 +311,18 @@ pub const Topic = struct {
 
     pub fn equal(self: *const Topic, other: Topic) bool {
         return std.mem.eql(u8, self.topic, other.topic);
+    }
+
+    pub fn format(
+        self: Topic,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.print("Topic{{" ++ terminal.green ++ "{s}" ++ terminal.reset ++ "}}", .{self.topic});
     }
 };
 

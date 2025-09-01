@@ -111,11 +111,11 @@ pub const Csi = union(enum) {
     }
 };
 
-pub fn colour(config: Csi.Colour) String {
-    return config.string();
+pub fn colour(comptime config: Csi.Colour) String {
+    return (Csi{ .graphic = .{ .colour = config } }).string();
 }
 
-pub const reset = colour(.{.reset});
+pub const reset = (Csi{ .graphic = .reset }).string();
 pub const black = colour(.{ .colour = .black });
 pub const red = colour(.{ .colour = .red });
 pub const green = colour(.{ .colour = .green });
@@ -124,6 +124,7 @@ pub const blue = colour(.{ .colour = .blue });
 pub const magenta = colour(.{ .colour = .magenta });
 pub const cyan = colour(.{ .colour = .cyan });
 pub const white = colour(.{ .colour = .white });
+pub const bold = (Csi{ .graphic = .bold }).string();
 
 test "CSI" {
     assert(std.mem.eql(
