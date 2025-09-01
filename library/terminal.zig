@@ -26,6 +26,22 @@ pub const Csi = union(enum) {
         }
     },
 
+    erase: enum {
+        cursor_to_end,
+        cursor_to_begin,
+        entire_screen,
+        entire_screen_and_scrollback,
+
+        fn string(comptime self: @This()) String {
+            return switch (self) {
+                .cursor_to_end => "0",
+                .cursor_to_begin => "1",
+                .entire_screen => "2",
+                .entire_screen_and_scrollback => "3",
+            };
+        }
+    },
+
     graphic: Graphic,
 
     pub const Colour = struct {
@@ -89,6 +105,7 @@ pub const Csi = union(enum) {
     pub fn string(comptime self: Csi) String {
         return csi ++ switch (self) {
             .cursor_position => |cursor_position| cursor_position.string(),
+            .erase => |erase| erase.string(),
             .graphic => |graphic| graphic.string(),
         };
     }
@@ -98,11 +115,15 @@ pub fn colour(config: Csi.Colour) String {
     return config.string();
 }
 
-comptime {
-    _ = (Csi{ .graphic = .{ .colour = .{ .where = .background, .bright = true, .colour = .cyan } } }).string();
-    _ = (Csi{ .cursor_position = .{ .row = 1, .column = 1 } }).string();
-    _ = colour(.{ .colour = .blue });
-}
+pub const reset = colour(.{.reset});
+pub const black = colour(.{ .colour = .black });
+pub const red = colour(.{ .colour = .red });
+pub const green = colour(.{ .colour = .green });
+pub const yellow = colour(.{ .colour = .yellow });
+pub const blue = colour(.{ .colour = .blue });
+pub const magenta = colour(.{ .colour = .magenta });
+pub const cyan = colour(.{ .colour = .cyan });
+pub const white = colour(.{ .colour = .white });
 
 test "CSI" {
     assert(std.mem.eql(
