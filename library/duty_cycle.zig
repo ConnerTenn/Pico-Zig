@@ -9,10 +9,6 @@ const pio = hardware.pio;
 
 const foc = pico.library.foc;
 
-const duty_cycle_pio = @cImport({
-    @cInclude("duty_cycle.pio.h");
-});
-
 pub const DutyCycle = struct {
     const Self = @This();
 
@@ -27,14 +23,14 @@ pub const DutyCycle = struct {
 
         return Self{
             .pio_high = try pio.Pio.create(
-                @ptrCast(&duty_cycle_pio.high_cycle_program),
-                @ptrCast(&duty_cycle_pio.high_cycle_program_get_default_config),
+                @ptrCast(&csdk.high_cycle_program),
+                @ptrCast(&csdk.high_cycle_program_get_default_config),
                 gpio_base,
                 @as(hardware.gpio.Pin.Count, 1),
             ),
             .pio_low = try pio.Pio.create(
-                @ptrCast(&duty_cycle_pio.low_cycle_program),
-                @ptrCast(&duty_cycle_pio.high_cycle_program_get_default_config),
+                @ptrCast(&csdk.low_cycle_program),
+                @ptrCast(&csdk.high_cycle_program_get_default_config),
                 gpio_base,
                 @as(hardware.gpio.Pin.Count, 1),
             ),

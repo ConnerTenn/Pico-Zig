@@ -3,10 +3,6 @@ const csdk = pico.csdk;
 const hardware = pico.hardware;
 const pio = hardware.pio;
 
-const ws2812_pio = @cImport({
-    @cInclude("ws2812.pio.h");
-});
-
 pub const WS2812 = struct {
     const Self = @This();
 
@@ -15,8 +11,8 @@ pub const WS2812 = struct {
     pub fn create(transmit_pin: hardware.gpio.Pin) !Self {
         return Self{
             .transmit_pio = try pio.Pio.create(
-                @ptrCast(&ws2812_pio.ws2812_program),
-                @ptrCast(&ws2812_pio.ws2812_program_get_default_config),
+                @ptrCast(&csdk.ws2812_program),
+                @ptrCast(&csdk.ws2812_program_get_default_config),
                 transmit_pin,
                 @as(hardware.gpio.Pin.Count, 1),
             ),

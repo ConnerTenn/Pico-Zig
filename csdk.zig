@@ -143,6 +143,9 @@ pub const csdk = @cImport({
     @cInclude("lwip/pbuf.h");
     @cInclude("lwip/tcp.h");
     @cInclude("lwip/apps/mqtt.h");
+
+    @cInclude("ws2812.pio.h");
+    @cInclude("duty_cycle.pio.h");
 });
 
 // Missing GPIO coprocessor functions
