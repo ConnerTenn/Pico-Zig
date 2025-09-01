@@ -10,6 +10,8 @@ const Mqtt = @This();
 
 mqtt_client: *csdk.mqtt_client_t,
 
+client_id_topic: Topic,
+
 active_topic: ?Topic,
 active_message: ?MessageBuffer,
 
@@ -29,7 +31,7 @@ const Retain = enum(u8) {
 pub const Callbacks = struct {
     ctx: ?*anyopaque,
     connected_callback: *const fn (ctx: ?*anyopaque) void,
-    message_recv_callback: *const fn (ctx: ?*anyopaque, topic: [:0]const u8, message: []const u8) void,
+    message_recv_callback: *const fn (ctx: ?*anyopaque, topic: Topic, message: []const u8) void,
 };
 
 pub const Topic = struct {
@@ -56,11 +58,29 @@ pub const Topic = struct {
     }
 
     pub fn length(self: *const Topic) usize {
-        return std.mem.len(self.topic);
+        return self.topic.len;
     }
 
-    pub fn getSlice(self: *Topic) [:0]const u8 {
+    pub fn getSlice(self: *const Topic) [:0]const u8 {
         return self.topic;
+    }
+
+    /// Creates a new allocated Topic.
+    /// Remember to free this with .deinit()
+    pub fn concat(self: *const Topic, other: *const Topic) !Topic {
+        const self_length = self.length();
+        const combined_len = self_length + other.length();
+        const topic_buffer = try global_allocator.alloc(u8, combined_len + 1);
+
+        @memcpy(topic_buffer[0..self_length], self.topic[0..]);
+        @memcpy(topic_buffer[self_length..combined_len], other.topic[0..]);
+        topic_buffer[combined_len] = 0; //Ensure sentinal termination
+
+        return Topic.new(topic_buffer[0..combined_len :0]);
+    }
+
+    pub fn equal(self: *const Topic, other: *const Topic) bool {
+        return std.mem.eql(u8, self.topic, other.topic);
     }
 };
 
@@ -86,13 +106,20 @@ pub const MessageBuffer = struct {
     }
 };
 
-pub fn new() !Mqtt {
+/// The message to post when the client disconnects from the server
+pub const DisconnectMessage = struct {
+    topic: Topic,
+    message: [:0]const u8,
+};
+
+pub fn new(client_id_topic: Topic) !Mqtt {
     const mqtt_client = csdk.mqtt_client_new() orelse {
         return error.FailedToCreateClient;
     };
 
     return Mqtt{
         .mqtt_client = mqtt_client,
+        .client_id_topic = client_id_topic,
         .active_topic = null,
         .active_message = null,
         .callbacks = null,
@@ -110,19 +137,20 @@ pub fn setCallbacks(self: *Mqtt, callbacks: Callbacks) void {
     self.callbacks = callbacks;
 }
 
-pub fn connect(self: *Mqtt, address: network.IpV4Addr, port: u16, id_topic: [:0]const u8) !void {
+pub fn connect(self: *Mqtt, address: network.IpV4Addr, port: u16, disconnect_message: DisconnectMessage) !void {
     network.enterCriticalSection();
     defer network.exitCriticalSection();
 
     const client_info = csdk.mqtt_connect_client_info_t{
-        .client_id = id_topic,
+        .client_id = self.client_id_topic.getSlice(),
         // .client_user
         // .client_pass
-        .keep_alive = 60, //[sec]
-        // .will_topic = "/online",
-        // .will_msg = "0",
-        // .will_qos = 1,
-        // .will_retain = 1,
+        .keep_alive = 10, //[sec]
+        .will_topic = disconnect_message.topic.getSlice(),
+        .will_msg = disconnect_message.message,
+        .will_msg_len = 0,
+        .will_qos = @intFromEnum(QOS.AtLeastOnce),
+        .will_retain = @intFromEnum(Retain.true),
     };
 
     stdio.print("mqtt_client_connect\n", .{});
@@ -150,18 +178,39 @@ pub fn connected(self: *Mqtt) bool {
     return csdk.mqtt_client_is_connected(self.mqtt_client) == 1;
 }
 
-pub fn subscribe(self: *Mqtt, topic: [:0]const u8, qos: QOS) !void {
+pub fn subscribe(self: *Mqtt, topic: Topic, qos: QOS, prepend_client_id: bool) !void {
+    var subscribe_topic = switch (prepend_client_id) {
+        false => topic,
+        true => try self.client_id_topic.concat(&topic),
+    };
+    defer if (prepend_client_id) {
+        subscribe_topic.deinit();
+    };
+
+    stdio.print("subscribe to {s}\n", .{subscribe_topic.getSlice()});
+
+    const err = csdk.mqtt_sub_unsub(self.mqtt_client, subscribe_topic.getSlice().ptr, @intFromEnum(qos), subRequestCallback, self, 1);
+
     if (network.hasError(
-        csdk.mqtt_sub_unsub(self.mqtt_client, topic.ptr, @intFromEnum(qos), subRequestCallback, self, 1),
+        err,
         "mqtt_sub_unsub() Failed",
     )) {
         return error.FailedToSubscribe;
     }
 }
 
-pub fn publish(self: *Mqtt, topic: [:0]const u8, message: []const u8, qos: QOS, retain: Retain) !void {
-    stdio.print("publish {s}<-\"{s}\"\n", .{ topic, message });
-    const err = csdk.mqtt_publish(self.mqtt_client, topic.ptr, message.ptr, @intCast(message.len), @intFromEnum(qos), @intFromEnum(retain), mqttPubRequestCallback, self);
+pub fn publish(self: *Mqtt, topic: Topic, message: []const u8, qos: QOS, retain: Retain, prepend_client_id: bool) !void {
+    var publish_topic = switch (prepend_client_id) {
+        false => topic,
+        true => try self.client_id_topic.concat(&topic),
+    };
+    defer if (prepend_client_id) {
+        publish_topic.deinit();
+    };
+
+    stdio.print("publish {s}<-\"{s}\"\n", .{ publish_topic.getSlice(), message });
+
+    const err = csdk.mqtt_publish(self.mqtt_client, publish_topic.getSlice().ptr, message.ptr, @intCast(message.len), @intFromEnum(qos), @intFromEnum(retain), mqttPubRequestCallback, self);
 
     if (network.hasError(
         err,
@@ -261,7 +310,7 @@ fn dataCallback(arg: ?*anyopaque, raw_data: [*c]const u8, len: u16, flags: u8) c
             if (self.active_topic) |*active_topic| {
                 // Call message callback
                 if (self.callbacks) |callbacks| {
-                    callbacks.message_recv_callback(callbacks.ctx, active_topic.getSlice(), active_message.getSlice());
+                    callbacks.message_recv_callback(callbacks.ctx, active_topic.*, active_message.getSlice());
                 }
 
                 // reset active_topic
