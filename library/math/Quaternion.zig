@@ -1,10 +1,9 @@
 // https://eater.net/quaternions
 
 const std = @import("std");
-const math = std.math;
 
-const math3D = @import("math3D.zig");
-const Vector3 = math3D.Vector3;
+const math = @import("math.zig");
+const Vector3 = math.Vector3;
 
 const Quaternion = @This();
 pub const Vec4 = @Vector(4, f32);
@@ -133,10 +132,10 @@ pub fn rotateVector(self: *const Quaternion, vec: Vector3) Vector3 {
 }
 
 pub fn approxEqAbs(self: *const Quaternion, other: Quaternion, tolerance: f32) bool {
-    return math.approxEqAbs(f32, self.r(), other.r(), tolerance) and
-        math.approxEqAbs(f32, self.i(), other.i(), tolerance) and
-        math.approxEqAbs(f32, self.j(), other.j(), tolerance) and
-        math.approxEqAbs(f32, self.k(), other.k(), tolerance);
+    return std.math.approxEqAbs(f32, self.r(), other.r(), tolerance) and
+        std.math.approxEqAbs(f32, self.i(), other.i(), tolerance) and
+        std.math.approxEqAbs(f32, self.j(), other.j(), tolerance) and
+        std.math.approxEqAbs(f32, self.k(), other.k(), tolerance);
 }
 
 pub fn format(self: Quaternion, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -272,7 +271,7 @@ test "inverse" {
 
 test "rotate yaw" {
     const axis = Vector3.create(0, 0, 1);
-    const angle = math.tau * 0.25;
+    const angle = std.math.tau * 0.25;
     const quaternion = Quaternion.fromAxisAngle(axis, angle);
 
     const point = Vector3.create(1, 0, 0);
@@ -287,7 +286,7 @@ test "rotate yaw" {
 
 test "rotate pitch" {
     const axis = Vector3.create(1, 0, 0);
-    const angle = math.tau * 0.25;
+    const angle = std.math.tau * 0.25;
     const quaternion = Quaternion.fromAxisAngle(axis, angle);
 
     const point = Vector3.create(0, 1, 0);
@@ -302,7 +301,7 @@ test "rotate pitch" {
 
 test "rotate roll" {
     const axis = Vector3.create(0, 1, 0);
-    const angle = math.tau * 0.25;
+    const angle = std.math.tau * 0.25;
     const quaternion = Quaternion.fromAxisAngle(axis, angle);
 
     const point = Vector3.create(1, 0, 0);
@@ -317,7 +316,7 @@ test "rotate roll" {
 
 test "rotate off axis" {
     const axis = Vector3.create(1, 1, 1);
-    const angle = math.tau * 0.87;
+    const angle = std.math.tau * 0.87;
     const quaternion = Quaternion.fromAxisAngle(axis, angle);
 
     const point = Vector3.create(-1.79, 2.46, 0.88);
@@ -332,9 +331,9 @@ test "rotate off axis" {
 test "RollPitchYaw" {
     const point = Vector3.create(0.0, 0.0, 1.0);
 
-    const roll = math.tau / 8.0;
-    const pitch = math.tau / 5.6;
-    const yaw = math.tau / 2.7;
+    const roll = std.math.tau / 8.0;
+    const pitch = std.math.tau / 5.6;
+    const yaw = std.math.tau / 2.7;
     const quaternion = Quaternion.fromRollPitchYaw(roll, pitch, yaw);
 
     const result = quaternion.rotateVector(point);

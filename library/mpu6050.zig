@@ -8,7 +8,7 @@ const stdio = pico.stdio;
 const hardware = pico.hardware;
 const time = pico.library.time;
 const PIDcontrol = pico.library.pid.PIDcontrol;
-const Vector3 = pico.library.math3D.Vector3;
+const Vector3 = pico.library.math.Vector3;
 
 pub const MPU6050 = struct {
     const Self = @This();

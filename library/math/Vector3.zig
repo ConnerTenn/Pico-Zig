@@ -147,12 +147,16 @@ pub fn rotatePitchYaw(self: *const Vector3, pitch: f32, yaw: f32) Vector3 {
     return self.rotate(pitch_axis, pitch).rotate(yaw_axis, yaw);
 }
 
-pub fn integrate(self: *Vector3, higher_order: Vector3, delta_time: f32) void {
-    self.* = self.add(higher_order.mul(Vector3.createScalar(delta_time)));
+/// Accumulate the integrand into the current vector
+pub fn integrate(self: *Vector3, integrand: Vector3, delta_time: f32) void {
+    self.* = self.add(integrand.mul(Vector3.createScalar(delta_time)));
 }
 
-pub fn differentiate(self: *Vector3, new_value: Vector3, delta_time: f32) Vector3 {
-    return new_value.sub(self.*).div(delta_time);
+/// Calculate the derivative of prev_value->self.
+///
+/// prev_value is the value from the previous sample
+pub fn differentiate(self: *const Vector3, prev_value: Vector3, delta_time: f32) Vector3 {
+    return self.sub(prev_value).div(delta_time);
 }
 
 pub fn format(self: Vector3, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {

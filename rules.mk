@@ -71,7 +71,8 @@ build: $(BIN)
 
 .PHONY: test
 test:
-	zig build test
+	zig test Pico-Zig/test.zig
+
 
 .PHONY: program
 program: | $(BIN)
