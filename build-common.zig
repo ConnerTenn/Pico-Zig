@@ -6,6 +6,13 @@ pub const PicoTargets = enum {
     rp2350,
 };
 
+pub const PicoBoards = enum {
+    pico,
+    pico_w,
+    pico2,
+    pico2_w,
+};
+
 const CpuFeature = std.Target.Cpu.Feature;
 const CpuModel = std.Target.Cpu.Model;
 const featureSet = CpuFeature.FeatureSetFns(std.Target.arm.Feature).featureSet;
@@ -46,6 +53,14 @@ pub fn build(
         std.debug.print("Warning: You must select a pico target. Using default...", .{});
         break :default .rp2040;
     };
+    const board_arg = build_config.option(
+        PicoBoards,
+        "pico-board",
+        "Select the pico board in use",
+    ) orelse default: {
+        std.debug.print("Warning: You must select a pico board. Using default...", .{});
+        break :default .pico;
+    };
     const name_arg = build_config.option(
         []const u8,
         "project-name",
@@ -76,7 +91,7 @@ pub fn build(
         .root_source_file = build_config.path("Pico-Zig/pico.zig"),
     });
 
-    configureOptions(build_config, pico_module, target_arg);
+    configureOptions(build_config, pico_module, target_arg, board_arg);
 
     lib.root_module.addImport("pico", pico_module);
 
@@ -103,9 +118,10 @@ pub fn build(
     test_step.dependOn(&test_artifact.step);
 }
 
-pub fn configureOptions(build_config: *Build, module: *Build.Module, target: PicoTargets) void {
+pub fn configureOptions(build_config: *Build, module: *Build.Module, target: PicoTargets, board: PicoBoards) void {
     const config_options = build_config.addOptions();
     config_options.addOption(PicoTargets, "target", target);
+    config_options.addOption(PicoBoards, "board", board);
     module.addOptions("config", config_options);
 }
 

@@ -120,9 +120,10 @@ $(BUILD_DIR):
 # 	cp ${FILE_DIR}/flake.nix ${RUN_DIR}
 
 # Zig build
-${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a: *.zig src/*.zig | $(BUILD_DIR)/generated/pico_base/pico ${EXTRA_LIB_DEPENDENCIES}
+.PHONY: ${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a
+${RUN_DIR}/zig-out/lib/lib${PROJECT_NAME}.a: *.zig src/*.zig | $(BUILD_DIR)/generated/pico_base/pico ${BUILD_DIR}/ws2812.pio.h ${BUILD_DIR}/duty_cycle.pio.h ${EXTRA_LIB_DEPENDENCIES}
 	#zig build -freference-trace --verbose-llvm-cpu-features build
-	zig build -freference-trace -Dpico-target=${ZIG_TARGET} -Dproject-name=${PROJECT_NAME} build
+	zig build -freference-trace -Dpico-target=${ZIG_TARGET} -Dpico-board=${PICO_BOARD} -Dproject-name=${PROJECT_NAME} build
 
 # Repos
 ${RUN_DIR}/pico-examples:

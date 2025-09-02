@@ -8,9 +8,13 @@ const terminal = pico.library.terminal;
 pub const TcpServer = @import("TcpServer.zig");
 pub const mqtt = @import("mqtt.zig");
 
+var initialized = false;
 pub fn init() !void {
-    if (csdk.cyw43_arch_init() != 0) {
-        return error.FailedToInitialize;
+    if (!initialized) {
+        if (csdk.cyw43_arch_init() != 0) {
+            return error.FailedToInitialize;
+        }
+        initialized = true;
     }
 }
 
