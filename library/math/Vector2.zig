@@ -82,22 +82,22 @@ pub fn angleBetween(self: *const Vector2, other: Vector2) f32 {
 
 pub fn approxEqAbs(self: *const Vector2, other: Vector2, tolerance: f32) bool {
     return math.approxEqAbs(f32, self.x(), other.x(), tolerance) and
-        math.approxEqAbs(f32, self.y(), other.y(), tolerance) and
-        math.approxEqAbs(f32, self.z(), other.z(), tolerance);
+        math.approxEqAbs(f32, self.y(), other.y(), tolerance);
 }
 
 pub fn approxAlignedAbs(self: *const Vector2, other: Vector2, tolerance: f32) bool {
     return math.approxEqAbs(f32, self.angleBetween(other), 0.0, tolerance);
 }
 
-pub fn integrate(self: *Vector2, higher_order: Vector2, delta_time: f32) void {
-    self.* = self.add(higher_order.mul(Vector2.createScalar(delta_time)));
+/// Accumulate the integrand into the current vector
+pub fn integrate(self: *Vector2, integrand: Vector2, delta_time: f32) void {
+    self.* = self.add(integrand.mul(Vector2.createScalar(delta_time)));
 }
 
 /// Calculate the derivative of prev_value->self.
 ///
 /// prev_value is the value from the previous sample
-pub fn differentiate(self: *Vector2, prev_value: Vector2, delta_time: f32) Vector2 {
+pub fn differentiate(self: *const Vector2, prev_value: Vector2, delta_time: f32) Vector2 {
     return self.sub(prev_value).div(delta_time);
 }
 
@@ -105,7 +105,7 @@ pub fn format(self: Vector2, comptime fmt: []const u8, options: std.fmt.FormatOp
     _ = fmt; // autofix
     _ = options;
 
-    try std.fmt.format(writer, "Vec2{{{d: >12.6}, {d: >12.6}, {d: >12.6}}}", .{ self.x(), self.y(), self.z() });
+    try std.fmt.format(writer, "Vec2{{{d: >12.6}, {d: >12.6}}}", .{ self.x(), self.y() });
 }
 
 const expect = std.testing.expect;
