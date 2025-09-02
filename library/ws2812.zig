@@ -77,4 +77,13 @@ pub const Pixel = packed union {
             @intFromFloat(white * 255.0),
         );
     }
+
+    pub fn fromRGBW(rgbw: pico.library.colour.RGBW) Self {
+        return create(
+            @intFromFloat(rgbw.rgb.red * 255.0),
+            @intFromFloat(rgbw.rgb.green * 255.0),
+            @intFromFloat(rgbw.rgb.blue * 255.0),
+            @intFromFloat(rgbw.white * 255.0),
+        );
+    }
 };

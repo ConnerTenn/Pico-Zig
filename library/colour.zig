@@ -2,6 +2,7 @@ const std = @import("std");
 const math = std.math;
 
 const pico = @import("../pico.zig");
+const terminal = pico.library.terminal;
 
 // Reference: https://en.wikipedia.org/wiki/HSL_and_HSV
 
@@ -16,10 +17,18 @@ pub const RGB = struct {
     blue: f32,
 
     pub fn create(red: f32, green: f32, blue: f32) Self {
+        return (Self{
+            .red = red,
+            .green = green,
+            .blue = blue,
+        }).normalize();
+    }
+
+    pub fn normalize(self: Self) Self {
         return Self{
-            .red = @max(@min(red, 1.0), 0.0),
-            .green = @max(@min(green, 1.0), 0.0),
-            .blue = @max(@min(blue, 1.0), 0.0),
+            .red = @max(@min(self.red, 1.0), 0.0),
+            .green = @max(@min(self.green, 1.0), 0.0),
+            .blue = @max(@min(self.blue, 1.0), 0.0),
         };
     }
 
@@ -60,6 +69,91 @@ pub const RGB = struct {
             5 => create(chroma, 0.0, chroma_fade),
             else => unreachable,
         };
+    }
+
+    pub fn add(
+        self: Self,
+        other: Self,
+    ) Self {
+        return Self{
+            .red = self.red + other.red,
+            .green = self.green + other.green,
+            .blue = self.blue + other.blue,
+        };
+    }
+
+    pub fn sub(
+        self: Self,
+        other: Self,
+    ) Self {
+        return Self{
+            .red = self.red - other.red,
+            .green = self.green - other.green,
+            .blue = self.blue - other.blue,
+        };
+    }
+
+    pub fn mul(
+        self: Self,
+        other: Self,
+    ) Self {
+        return Self{
+            .red = self.red * other.red,
+            .green = self.green * other.green,
+            .blue = self.blue * other.blue,
+        };
+    }
+
+    pub fn div(
+        self: Self,
+        other: Self,
+    ) Self {
+        return Self{
+            .red = self.red / other.red,
+            .green = self.green / other.green,
+            .blue = self.blue / other.blue,
+        };
+    }
+
+    pub fn addScalar(
+        self: Self,
+        other: f32,
+    ) Self {
+        return Self{
+            .red = self.red + other,
+            .green = self.green + other,
+            .blue = self.blue + other,
+        };
+    }
+
+    pub fn mulScalar(
+        self: Self,
+        other: f32,
+    ) Self {
+        return Self{
+            .red = self.red * other,
+            .green = self.green * other,
+            .blue = self.blue * other,
+        };
+    }
+
+    pub fn format(
+        self: Self,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.print(
+            "RGB{{" ++
+                terminal.red ++ "{d:<.6} " ++
+                terminal.green ++ "{d:<.6} " ++
+                terminal.blue ++ "{d:<.6}" ++
+                terminal.reset ++ "}}",
+            .{ self.red, self.green, self.blue },
+        );
     }
 };
 
@@ -173,5 +267,115 @@ pub const HSL = struct {
         }
 
         return create(hsv.hue, saturation, lightness);
+    }
+};
+
+pub const RGBW = struct {
+    const Self = @This();
+    rgb: RGB,
+    white: f32,
+
+    pub fn create(red: f32, green: f32, blue: f32, white: f32) Self {
+        return (Self{
+            .rgb = RGB{
+                .red = red,
+                .green = green,
+                .blue = blue,
+            },
+            .white = white,
+        }).normalize();
+    }
+
+    pub fn normalize(self: Self) Self {
+        return Self{
+            .rgb = self.rgb.normalize(),
+            .white = @max(@min(self.white, 1.0), 0.0),
+        };
+    }
+
+    pub fn add(
+        self: Self,
+        other: Self,
+    ) Self {
+        const rgb_result = self.rgb.add(other.rgb);
+        return Self{
+            .rgb = rgb_result,
+            .white = self.white + other.white,
+        };
+    }
+
+    pub fn sub(
+        self: Self,
+        other: Self,
+    ) Self {
+        const rgb_result = self.rgb.sub(other.rgb);
+        return Self{
+            .rgb = rgb_result,
+            .white = self.white - other.white,
+        };
+    }
+
+    pub fn mul(
+        self: Self,
+        other: Self,
+    ) Self {
+        const rgb_result = self.rgb.mul(other.rgb);
+        return Self{
+            .rgb = rgb_result,
+            .white = self.white * other.white,
+        };
+    }
+
+    pub fn div(
+        self: Self,
+        other: Self,
+    ) Self {
+        const rgb_result = self.rgb.div(other.rgb);
+        return Self{
+            .rgb = rgb_result,
+            .white = self.white / other.white,
+        };
+    }
+
+    pub fn addScalar(
+        self: Self,
+        other: f32,
+    ) Self {
+        const rgb_result = self.rgb.addScalar(other);
+        return Self{
+            .rgb = rgb_result,
+            .white = self.white + other,
+        };
+    }
+
+    pub fn mulScalar(
+        self: Self,
+        other: f32,
+    ) Self {
+        const rgb_result = self.rgb.mulScalar(other);
+        return Self{
+            .rgb = rgb_result,
+            .white = self.white * other,
+        };
+    }
+
+    pub fn format(
+        self: Self,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.print(
+            "RGBW{{" ++
+                terminal.red ++ "{d:<.6} " ++
+                terminal.green ++ "{d:<.6} " ++
+                terminal.blue ++ "{d:<.6} " ++
+                terminal.white ++ "{d:<.6}" ++
+                terminal.reset ++ "}}",
+            .{ self.rgb.red, self.rgb.green, self.rgb.blue, self.white },
+        );
     }
 };
