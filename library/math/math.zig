@@ -1,7 +1,7 @@
-pub const Vector2 = @import("Vector2.zig");
-pub const Vector3 = @import("Vector3.zig");
-pub const Vector4 = @import("Vector4.zig");
-pub const Quaternion = @import("Quaternion.zig");
+pub const Vector2 = @import("vector2.zig").Vector2;
+pub const Vector3 = @import("vector3.zig").Vector3;
+pub const Vector4 = @import("vector4.zig").Vector4;
+pub const Quaternion = @import("quaternion.zig").Quaternion;
 
 comptime {
     _ = Vector2;
