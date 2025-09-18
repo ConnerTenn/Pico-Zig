@@ -1,6 +1,7 @@
 const std = @import("std");
 const pico = @import("pico.zig");
 const csdk = pico.csdk;
+const terminal = pico.library.terminal;
 
 pub fn init() void {
     _ = pico.csdk.stdio_init_all();
@@ -21,6 +22,51 @@ pub fn print(comptime fmt: []const u8, args: anytype) void {
         fmt,
         args,
     ) catch {};
+}
+
+pub fn warn(comptime fmt: []const u8, args: anytype) void {
+    const label_style = terminal.bold ++ terminal.yellow;
+    const message_style = terminal.reset ++ terminal.magenta;
+
+    print(
+        label_style ++ "Warning: " ++ message_style ++ fmt ++ terminal.reset,
+        args,
+    );
+}
+
+pub fn err(comptime fmt: []const u8, args: anytype) void {
+    const label_style = terminal.bold ++ terminal.red;
+    const message_style = terminal.reset ++ terminal.magenta;
+
+    print(
+        label_style ++ "Error: " ++ message_style ++ fmt ++ terminal.reset,
+        args,
+    );
+}
+
+pub fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
+    const label_style = terminal.bold ++ terminal.red;
+    const message_style = terminal.reset ++ terminal.magenta;
+
+    print(
+        label_style ++ "Fatal: " ++ message_style ++ fmt ++ terminal.reset,
+        args,
+    );
+
+    @trap();
+}
+
+pub fn trace(comptime fmt: []const u8, args: anytype) void {
+    // const darker = terminal.Csi.Graphic.string(comptime self: Graphic);
+    const lighter = comptime (terminal.Csi{ .graphic = .{ .colour = .{ .bright = true, .colour = .black } } }).string();
+    const darker = comptime (terminal.Csi{ .graphic = .{ .colour = .{ .colour = .black } } }).string();
+    const label_style = terminal.bold ++ darker;
+    const message_style = terminal.reset ++ lighter;
+
+    print(
+        label_style ++ "Trace: " ++ message_style ++ fmt ++ terminal.reset,
+        args,
+    );
 }
 
 pub fn printBarGraph(size: comptime_int, value: f32, writer: anytype) !void {

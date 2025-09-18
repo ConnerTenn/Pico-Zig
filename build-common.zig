@@ -6,6 +6,13 @@ pub const PicoTargets = enum {
     rp2350,
 };
 
+pub const PicoBoards = enum {
+    pico,
+    pico_w,
+    pico2,
+    pico2_w,
+};
+
 const CpuFeature = std.Target.Cpu.Feature;
 const CpuModel = std.Target.Cpu.Model;
 const featureSet = CpuFeature.FeatureSetFns(std.Target.arm.Feature).featureSet;
@@ -34,7 +41,6 @@ pub const rp2350_target = std.Target.Query{
 
 pub fn build(
     build_config: *Build,
-    name: []const u8,
     root_source_file: Build.LazyPath,
     default_optimize_mode: std.builtin.OptimizeMode,
 ) void {
@@ -43,13 +49,30 @@ pub fn build(
         PicoTargets,
         "pico-target",
         "Select which pico you want to target",
-    ) orelse {
-        @panic("You must select a pico target");
+    ) orelse default: {
+        std.debug.print("Warning: You must select a pico target. Using default...", .{});
+        break :default .rp2040;
+    };
+    const board_arg = build_config.option(
+        PicoBoards,
+        "pico-board",
+        "Select the pico board in use",
+    ) orelse default: {
+        std.debug.print("Warning: You must select a pico board. Using default...", .{});
+        break :default .pico;
+    };
+    const name_arg = build_config.option(
+        []const u8,
+        "project-name",
+        "Configure the name of the project",
+    ) orelse default: {
+        std.debug.print("Warning: You must provide a project name. Using default...", .{});
+        break :default "default";
     };
 
     // == Create the static libarary ==
     const options = Build.StaticLibraryOptions{
-        .name = name,
+        .name = name_arg,
         .optimize = build_config.standardOptimizeOption(Build.StandardOptimizeOptionOptions{
             .preferred_optimize_mode = default_optimize_mode,
         }),
@@ -58,6 +81,7 @@ pub fn build(
             .rp2350 => rp2350_target,
         }),
         .root_source_file = root_source_file,
+        .link_libc = true,
     };
 
     const lib = build_config.addStaticLibrary(options);
@@ -67,7 +91,7 @@ pub fn build(
         .root_source_file = build_config.path("Pico-Zig/pico.zig"),
     });
 
-    configureOptions(build_config, pico_module, target_arg);
+    configureOptions(build_config, pico_module, target_arg, board_arg);
 
     lib.root_module.addImport("pico", pico_module);
 
@@ -80,11 +104,24 @@ pub fn build(
 
     const build_step = build_config.step("build", "Build the application static library");
     build_step.dependOn(&lib_artifact.step);
+
+    // == test config ==
+    const test_config = build_config.addTest(Build.TestOptions{
+        .root_source_file = root_source_file,
+    });
+
+    test_config.root_module.addImport("pico", pico_module);
+
+    const test_artifact = build_config.addRunArtifact(test_config);
+
+    const test_step = build_config.step("test", "Run the unit tests");
+    test_step.dependOn(&test_artifact.step);
 }
 
-pub fn configureOptions(build_config: *Build, module: *Build.Module, target: PicoTargets) void {
+pub fn configureOptions(build_config: *Build, module: *Build.Module, target: PicoTargets, board: PicoBoards) void {
     const config_options = build_config.addOptions();
     config_options.addOption(PicoTargets, "target", target);
+    config_options.addOption(PicoBoards, "board", board);
     module.addOptions("config", config_options);
 }
 
@@ -104,13 +141,13 @@ pub fn addInclude(build_config: *Build, module: *Build.Module, include_path: []c
 pub fn addPicoIncludes(build_config: *Build, module: *Build.Module, target: PicoTargets) void {
     const common_includes = [_][]const u8{
         // "./pico-sdk/bazel/include",
-        "./pico-sdk/lib/btstack/3rd-party/bluedroid/decoder/include",
-        "./pico-sdk/lib/btstack/3rd-party/bluedroid/encoder/include",
-        "./pico-sdk/lib/btstack/3rd-party/lc3-google/include",
-        "./pico-sdk/lib/btstack/3rd-party/lwip/core/src/include",
-        "./pico-sdk/lib/btstack/port/esp32/components/btstack/include",
-        "./pico-sdk/lib/btstack/port/samv71-xplained-atwilc3000/ASF/sam/utils/cmsis/samv71/include",
-        "./pico-sdk/lib/btstack/test/le_audio/include",
+        // "./pico-sdk/lib/btstack/3rd-party/bluedroid/decoder/include",
+        // "./pico-sdk/lib/btstack/3rd-party/bluedroid/encoder/include",
+        // "./pico-sdk/lib/btstack/3rd-party/lc3-google/include",
+        // "./pico-sdk/lib/btstack/3rd-party/lwip/core/src/include",
+        // "./pico-sdk/lib/btstack/port/esp32/components/btstack/include",
+        // "./pico-sdk/lib/btstack/port/samv71-xplained-atwilc3000/ASF/sam/utils/cmsis/samv71/include",
+        // "./pico-sdk/lib/btstack/test/le_audio/include",
         "./pico-sdk/lib/lwip/contrib/ports/freertos/include",
         "./pico-sdk/lib/lwip/contrib/ports/unix/port/include",
         "./pico-sdk/lib/lwip/contrib/ports/unix/posixlib/include",
@@ -212,8 +249,11 @@ pub fn addPicoIncludes(build_config: *Build, module: *Build.Module, target: Pico
         // "./build/_deps/picotool-src/lib/include",
         // "./build/_deps/picotool-build/lib/mbedtls/include",
 
+        "./pico-sdk/lib/cyw43-driver/src",
+
         "./build/generated/pico_base",
         "./build",
+        "./",
     };
 
     const target_includes = switch (target) {

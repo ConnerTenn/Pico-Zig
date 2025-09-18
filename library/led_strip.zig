@@ -41,7 +41,7 @@ pub fn LedStrip(num_leds: comptime_int) type {
             self.dma.init(false);
         }
 
-        pub fn swapBuffers(self: *Self) void {
+        fn swapBuffers(self: *Self) void {
             self.active_buffer = switch (self.active_buffer) {
                 .buffer_A => .buffer_B,
                 .buffer_B => .buffer_A,
