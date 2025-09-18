@@ -87,6 +87,24 @@ pub const GU128x32 = struct {
                 .gram_y_addr = 0,
             },
         });
+        self.writeCommand(pico.library.gu128x32.GU128x32.AddressModeSet{
+            .byte1 = .{
+                .increment_x = .increment,
+                .increment_y = .fixed,
+            },
+        });
+        self.writeCommand(pico.library.gu128x32.GU128x32.DisplayOnOff{
+            .byte1 = .{
+                .layer_0 = .active,
+                .layer_1 = .active,
+            },
+            .byte2 = .{
+                .and_op = 0,
+                .xor_op = 0,
+                .gram_enable = .on,
+                .gram_invert = .normal,
+            },
+        });
     }
 
     const WriteType = enum(u1) {
