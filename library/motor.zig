@@ -220,9 +220,9 @@ pub const PwmDriver = struct {
 
     pub fn create(u_axis_slice: hardware.pwm.PwmSlice.SliceNum, v_axis_slice: hardware.pwm.PwmSlice.SliceNum, w_axis_slice: hardware.pwm.PwmSlice.SliceNum) Self {
         return Self{
-            .u_axis_pins = hardware.pwm.PwmSlice.create(u_axis_slice, 0x0FFF),
-            .v_axis_pins = hardware.pwm.PwmSlice.create(v_axis_slice, 0x0FFF),
-            .w_axis_pins = hardware.pwm.PwmSlice.create(w_axis_slice, 0x0FFF),
+            .u_axis_pins = hardware.pwm.PwmSlice.create(u_axis_slice, 0x0FFF, 1),
+            .v_axis_pins = hardware.pwm.PwmSlice.create(v_axis_slice, 0x0FFF, 1),
+            .w_axis_pins = hardware.pwm.PwmSlice.create(w_axis_slice, 0x0FFF, 1),
         };
     }
 

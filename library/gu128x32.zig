@@ -287,7 +287,7 @@ pub const GU128x32 = struct {
         const info = @typeInfo(@TypeOf(cmd));
 
         //Loop through each byte field in the command
-        const fields = info.Struct.fields;
+        const fields = info.@"struct".fields;
         inline for (fields) |field| {
             //Get the command byte
             const cmd_byte = @field(cmd, field.name);
