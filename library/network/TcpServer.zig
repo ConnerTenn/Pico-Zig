@@ -10,7 +10,7 @@ const TcpServer = @This();
 
 server_protocol_control_block: ?*csdk.struct_tcp_pcb,
 
-pub fn new(address: IpV4Addr, port: u16) !TcpServer {
+pub fn create(address: IpV4Addr, port: u16) !TcpServer {
     // const self = try std.heap.c_allocator.create(TcpServer);
 
     const server_protocol_control_block = csdk.tcp_new_ip_type(csdk.IPADDR_TYPE_ANY) orelse {

@@ -35,7 +35,7 @@ pub fn Mqtt(comptime client_id_topic: Topic) type {
             message_recv_callback: *const fn (ctx: ?*anyopaque, topic: Topic, message: []const u8) void,
         };
 
-        pub fn new() !Self {
+        pub fn create() !Self {
             const mqtt_client = csdk.mqtt_client_new() orelse {
                 return error.FailedToCreateClient;
             };
