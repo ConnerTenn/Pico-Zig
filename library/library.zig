@@ -13,3 +13,9 @@ pub const mpu6050 = @import("mpu6050.zig");
 pub const math = @import("math/math.zig");
 pub const network = @import("network/network.zig");
 pub const terminal = @import("terminal.zig");
+pub const String = @import("String.zig");
+
+comptime {
+    _ = math;
+    _ = String;
+}

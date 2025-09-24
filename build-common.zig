@@ -108,6 +108,7 @@ pub fn build(
     // == test config ==
     const test_config = build_config.addTest(Build.TestOptions{
         .root_source_file = root_source_file,
+        .link_libc = true,
     });
 
     test_config.root_module.addImport("pico", pico_module);
