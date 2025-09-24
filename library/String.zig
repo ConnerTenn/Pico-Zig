@@ -30,6 +30,10 @@ pub fn create(str: []const Char) String {
     }
 }
 
+pub fn clone(self: String) String {
+    return String.create(self.string);
+}
+
 pub fn destroy(self: *String) void {
     if (self.string) |string| {
         if (!self.comptime_created) {
@@ -79,7 +83,7 @@ pub fn format(
     _ = fmt;
     _ = options;
 
-    try writer.print(self.string.?, .{});
+    try writer.print("{s}", .{self.string.?});
 }
 
 const testing = std.testing;

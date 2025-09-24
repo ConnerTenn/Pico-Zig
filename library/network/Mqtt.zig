@@ -32,29 +32,32 @@ const Retain = enum(u8) {
 };
 
 pub const ConnectedCallback = struct {
-    ctx: ?anyopaque,
+    ctx: ?*anyopaque,
     callback: *const fn (ctx: ?*anyopaque) void,
 };
 pub const RecvCallback = struct {
-    ctx: ?anyopaque,
+    ctx: ?*anyopaque,
     callback: *const fn (ctx: ?*anyopaque, topic: Topic, message: []const u8) void,
 };
 pub const TopicCallback = struct {
-    ctx: ?anyopaque,
+    ctx: ?*anyopaque,
     topic: Topic,
     callbacck: *const fn (ctx: ?*anyopaque, message: []const u8) void,
 };
 
-pub fn create() !Mqtt {
+pub fn create(client_id_topic: Topic) !Mqtt {
     const mqtt_client = csdk.mqtt_client_new() orelse {
         return error.FailedToCreateClient;
     };
 
     return Mqtt{
+        .client_id_topic = client_id_topic,
         .mqtt_client = mqtt_client,
         .active_topic = null,
         .active_message = null,
-        .callbacks = null,
+        .connected_callback = null,
+        .recv_callback = null,
+        .topic_callbacks = std.StringHashMap(TopicCallback).init(pico.library.alloc.global_allocator),
     };
 }
 
@@ -74,11 +77,11 @@ pub fn connect(self: *Mqtt, address: network.IpV4Addr, port: u16, disconnect_mes
     defer network.exitCriticalSection();
 
     const client_info = csdk.mqtt_connect_client_info_t{
-        .client_id = self.client_id_topic.getSlice(),
+        .client_id = self.client_id_topic.getSentinel(),
         // .client_user
         // .client_pass
         .keep_alive = 10, //[sec]
-        .will_topic = disconnect_message.topic.getSlice(),
+        .will_topic = disconnect_message.topic.getSentinel(),
         .will_msg = disconnect_message.message,
         .will_msg_len = 0,
         .will_qos = @intFromEnum(QOS.AtLeastOnce),
@@ -110,21 +113,28 @@ pub fn connected(self: *Mqtt) bool {
     return csdk.mqtt_client_is_connected(self.mqtt_client) == 1;
 }
 
-pub fn subscribe(self: *Mqtt, topic: Topic, qos: QOS, prepend_client_id: bool) !void {
+pub fn subscribe(self: *Mqtt, topic: Topic, qos: QOS, prepend_client_id: bool, topic_callback: ?TopicCallback) !void {
     var subscribe_topic = switch (prepend_client_id) {
         false => topic,
         true => self.client_id_topic.concat(topic),
     };
+    defer subscribe_topic.destroy();
 
     stdio.print(terminal.magenta ++ "Subscribe" ++ terminal.reset ++ " to {s}\n", .{subscribe_topic});
 
-    const err = csdk.mqtt_sub_unsub(self.mqtt_client, subscribe_topic.getSlice().ptr, @intFromEnum(qos), subRequestCallback, self, 1);
+    const err = csdk.mqtt_sub_unsub(self.mqtt_client, subscribe_topic.getSentinel().ptr, @intFromEnum(qos), subRequestCallback, self, 1);
 
     if (network.hasError(
         err,
         "mqtt_sub_unsub() Failed",
     )) {
         return error.FailedToSubscribe;
+    }
+
+    if (topic_callback) |callback| {
+        // This will allocate new memory for the StringHashMap key
+        // This leaks memory, but since we don't consider unsubscribing from topics this isn't detrimental
+        try self.topic_callbacks.put(topic.clone().getSentinel(), callback);
     }
 }
 
@@ -139,7 +149,7 @@ pub fn publish(self: *Mqtt, comptime topic: Topic, message: []const u8, qos: QOS
         .{ publish_topic, message },
     );
 
-    const err = csdk.mqtt_publish(self.mqtt_client, publish_topic.getSlice().ptr, message.ptr, @intCast(message.len), @intFromEnum(qos), @intFromEnum(retain), mqttPubRequestCallback, self);
+    const err = csdk.mqtt_publish(self.mqtt_client, publish_topic.getSentinel().ptr, message.ptr, @intCast(message.len), @intFromEnum(qos), @intFromEnum(retain), mqttPubRequestCallback, self);
 
     if (network.hasError(
         err,
@@ -172,8 +182,8 @@ fn mqttConnectionCallback(client: ?*csdk.mqtt_client_t, arg: ?*anyopaque, status
     stdio.print(terminal.green ++ "Connected to mqtt!\n" ++ terminal.reset, .{});
 
     // Call connected callback
-    if (self.callbacks) |callbacks| {
-        callbacks.connected_callback(callbacks.ctx);
+    if (self.connected_callback) |connected_callback| {
+        connected_callback.callback(connected_callback.ctx);
     }
 }
 
@@ -240,8 +250,12 @@ fn dataCallback(arg: ?*anyopaque, raw_data: [*c]const u8, len: u16, flags: u8) c
                 );
 
                 // Call message callback
-                if (self.callbacks) |callbacks| {
-                    callbacks.message_recv_callback(callbacks.ctx, active_topic.*, active_message.getSlice());
+                if (self.recv_callback) |recv_callback| {
+                    recv_callback.callback(recv_callback.ctx, active_topic.*, active_message.getSlice());
+                }
+
+                if (self.topic_callbacks.get(active_topic.getSentinel())) |topic_callback| {
+                    topic_callback.callbacck(topic_callback.ctx, active_message.getSlice());
                 }
 
                 // reset active_topic
@@ -275,9 +289,13 @@ pub const Topic = struct {
         comptime std.debug.assert(in_comptime == false);
 
         const topic_len = std.mem.len(topic);
-        const topic_slice: [:0]String.Char = topic[0..topic_len :0];
+        const topic_slice: [:0]const String.Char = topic[0..topic_len :0];
 
-        return String.create(topic_slice);
+        return Topic.create(topic_slice);
+    }
+
+    pub fn clone(self: Topic) Topic {
+        return Topic.create(self.string.string);
     }
 
     pub fn destroy(self: *Topic) void {
@@ -292,7 +310,7 @@ pub const Topic = struct {
         return self.string.getSentinal();
     }
 
-    pub fn concat(comptime self: Topic, comptime other: Topic) Topic {
+    pub fn concat(self: Topic, other: Topic) Topic {
         return Topic{
             .string = self.string.concat(other.string),
         };
