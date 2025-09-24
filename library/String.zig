@@ -1,15 +1,15 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const pico = @import("../pico.zig");
-const global_allocator = pico.library.alloc.global_allocator;
+const allocator = if (builtin.is_test) std.testing.allocator else pico.library.alloc.global_allocator;
 
 const String = @This();
 pub const Char = u8;
-
 string: ?[]Char,
 
 pub fn create(str: []const Char) String {
-    const new_str = global_allocator.alloc(Char, str.len) catch unreachable;
+    const new_str = allocator.alloc(Char, str.len) catch unreachable;
 
     @memcpy(new_str, str);
 
@@ -20,7 +20,7 @@ pub fn create(str: []const Char) String {
 
 pub fn destroy(self: *String) void {
     if (self.string) |string| {
-        global_allocator.free(string);
+        allocator.free(string);
         self.string = null;
     }
 }
@@ -34,7 +34,7 @@ pub fn slice(self: String) []Char {
 }
 
 pub fn concat(self: String, other: String) String {
-    const new_str = std.mem.concat(global_allocator, Char, &[_][]const Char{ self.string.?, other.string.? }) catch unreachable;
+    const new_str = std.mem.concat(allocator, Char, &[_][]const Char{ self.string.?, other.string.? }) catch unreachable;
 
     return String{
         .string = new_str,
