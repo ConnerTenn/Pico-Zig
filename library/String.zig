@@ -6,15 +6,17 @@ const allocator = if (builtin.is_test) std.testing.allocator else pico.library.a
 
 const String = @This();
 pub const Char = u8;
-string: ?[]Char,
+
+string: ?[:0]Char,
 
 pub fn create(str: []const Char) String {
-    const new_str = allocator.alloc(Char, str.len) catch unreachable;
+    const new_str = allocator.alloc(Char, str.len + 1) catch unreachable;
 
-    @memcpy(new_str, str);
+    @memcpy(new_str[0..str.len], str);
+    new_str[str.len] = '\x00';
 
     return String{
-        .string = new_str,
+        .string = new_str[0..str.len :0],
     };
 }
 
@@ -25,16 +27,20 @@ pub fn destroy(self: *String) void {
     }
 }
 
-pub fn len(self: String) usize {
+pub fn length(self: String) usize {
     return self.string.?.len;
 }
 
-pub fn slice(self: String) []Char {
+pub fn getSlice(self: String) []Char {
+    return self.string.?;
+}
+
+pub fn getSentinal(self: String) [:0]Char {
     return self.string.?;
 }
 
 pub fn concat(self: String, other: String) String {
-    const new_str = std.mem.concat(allocator, Char, &[_][]const Char{ self.string.?, other.string.? }) catch unreachable;
+    const new_str = std.mem.concatWithSentinel(allocator, Char, &[_][]const Char{ self.string.?, other.string.? }, '\x00') catch unreachable;
 
     return String{
         .string = new_str,
@@ -45,6 +51,18 @@ pub fn equal(self: String, other: String) bool {
     return std.mem.eql(Char, self.string.?, other.string.?);
 }
 
+pub fn format(
+    self: String,
+    comptime fmt: []const u8,
+    options: std.fmt.FormatOptions,
+    writer: anytype,
+) !void {
+    _ = fmt;
+    _ = options;
+
+    try writer.print(self.string.?, .{});
+}
+
 const testing = std.testing;
 
 test "Create string" {
@@ -52,7 +70,8 @@ test "Create string" {
     defer str.destroy();
 
     try testing.expect(str.string != null);
-    try testing.expectEqualStrings("abc", str.slice());
+    try testing.expectEqual(3, str.length());
+    try testing.expectEqualStrings("abc", str.getSlice());
 }
 
 test "Concat string" {
@@ -66,5 +85,18 @@ test "Concat string" {
     defer str_combined.destroy();
 
     try testing.expect(str_combined.string != null);
-    try testing.expectEqualStrings("abcdef", str_combined.slice());
+    try testing.expectEqual(6, str_combined.length());
+    try testing.expectEqualStrings("abcdef", str_combined.getSlice());
+}
+
+test "sentinals" {
+    const src_str: [:0]const Char = "abc";
+
+    var str = String.create(src_str);
+    defer str.destroy();
+
+    try testing.expect(str.string != null);
+    try testing.expectEqual(3, str.length());
+    try testing.expectEqualStrings(src_str, str.getSlice());
+    try testing.expectEqualSentinel(Char, '\x00', src_str, str.getSentinal());
 }
