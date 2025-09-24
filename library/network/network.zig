@@ -6,7 +6,7 @@ const stdio = pico.stdio;
 const terminal = pico.library.terminal;
 
 pub const TcpServer = @import("TcpServer.zig");
-pub const mqtt = @import("mqtt.zig");
+pub const Mqtt = @import("Mqtt.zig");
 
 var initialized = false;
 pub fn init() !void {
