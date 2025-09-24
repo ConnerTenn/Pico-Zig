@@ -1,14 +1,16 @@
 const std = @import("std");
 const math = std.math;
+const testing = std.testing;
 
 const pico = @import("../pico.zig");
 const terminal = pico.library.terminal;
 
+const Vector3 = pico.library.math.Vector3(f32);
+const Vector4 = pico.library.math.Vector4(f32);
+
 // Reference: https://en.wikipedia.org/wiki/HSL_and_HSV
 
 pub const RGB = struct {
-    const Self = @This();
-
     /// Range: [0,1]
     red: f32,
     /// Range: [0,1]
@@ -16,23 +18,31 @@ pub const RGB = struct {
     /// Range: [0,1]
     blue: f32,
 
-    pub fn create(red: f32, green: f32, blue: f32) Self {
-        return (Self{
+    pub fn create(red: f32, green: f32, blue: f32) RGB {
+        return (RGB{
             .red = red,
             .green = green,
             .blue = blue,
         }).normalize();
     }
 
-    pub fn normalize(self: Self) Self {
-        return Self{
+    fn getVec(self: RGB) Vector3 {
+        return Vector3.create(self.red, self.green, self.blue);
+    }
+
+    fn fromVec(vec: Vector3) RGB {
+        return RGB.create(vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn normalize(self: RGB) RGB {
+        return RGB{
             .red = @max(@min(self.red, 1.0), 0.0),
             .green = @max(@min(self.green, 1.0), 0.0),
             .blue = @max(@min(self.blue, 1.0), 0.0),
         };
     }
 
-    pub fn fromHSV(hsv: HSV) Self {
+    pub fn fromHSV(hsv: HSV) RGB {
         const hue_region: u8 = @intFromFloat(6.0 * hsv.hue);
         const chroma = hsv.value * hsv.saturation;
         const chroma_fade = chroma * (1.0 - @abs(pico.math.mod(f32, 6.0 * hsv.hue, 2.0, .euclidean) - 1.0));
@@ -55,7 +65,7 @@ pub const RGB = struct {
         return rgb;
     }
 
-    pub fn fromHSL(hsl: HSL) Self {
+    pub fn fromHSL(hsl: HSL) RGB {
         const hue_region: u8 = @intFromFloat(6.0 * hsl.hue);
         const chroma = (1.0 - @abs(2.0 * hsl.lightness - 1.0)) * hsl.saturation;
         const chroma_fade = chroma * (1.0 - @abs(pico.math.mod(f32, 6.0 * hsl.hue, 2.0, .euclidean) - 1.0));
@@ -71,74 +81,8 @@ pub const RGB = struct {
         };
     }
 
-    pub fn add(
-        self: Self,
-        other: Self,
-    ) Self {
-        return Self{
-            .red = self.red + other.red,
-            .green = self.green + other.green,
-            .blue = self.blue + other.blue,
-        };
-    }
-
-    pub fn sub(
-        self: Self,
-        other: Self,
-    ) Self {
-        return Self{
-            .red = self.red - other.red,
-            .green = self.green - other.green,
-            .blue = self.blue - other.blue,
-        };
-    }
-
-    pub fn mul(
-        self: Self,
-        other: Self,
-    ) Self {
-        return Self{
-            .red = self.red * other.red,
-            .green = self.green * other.green,
-            .blue = self.blue * other.blue,
-        };
-    }
-
-    pub fn div(
-        self: Self,
-        other: Self,
-    ) Self {
-        return Self{
-            .red = self.red / other.red,
-            .green = self.green / other.green,
-            .blue = self.blue / other.blue,
-        };
-    }
-
-    pub fn addScalar(
-        self: Self,
-        other: f32,
-    ) Self {
-        return Self{
-            .red = self.red + other,
-            .green = self.green + other,
-            .blue = self.blue + other,
-        };
-    }
-
-    pub fn mulScalar(
-        self: Self,
-        other: f32,
-    ) Self {
-        return Self{
-            .red = self.red * other,
-            .green = self.green * other,
-            .blue = self.blue * other,
-        };
-    }
-
     pub fn format(
-        self: Self,
+        self: RGB,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
@@ -157,25 +101,65 @@ pub const RGB = struct {
     }
 };
 
-pub const HSV = struct {
-    const Self = @This();
+test "rgb create" {
+    const rgb = RGB.create(2.0, 0.5, 0.1);
 
-    /// Range: [0, 1]
+    try testing.expectApproxEqAbs(1.0, rgb.red, 0.01);
+    try testing.expectApproxEqAbs(0.5, rgb.green, 0.01);
+    try testing.expectApproxEqAbs(0.1, rgb.blue, 0.01);
+}
+
+test "rgb from hsv" {
+    const hsv = HSV.create(0.0, 1.0, 1.0);
+    const rgb = RGB.fromHSV(hsv);
+
+    try testing.expectApproxEqAbs(1.0, rgb.red, 0.01);
+    try testing.expectApproxEqAbs(0.0, rgb.green, 0.01);
+    try testing.expectApproxEqAbs(0.0, rgb.blue, 0.01);
+}
+
+test "rgb from hsl" {
+    const hsl = HSL.create(0.0, 1.0, 0.5);
+    const rgb = RGB.fromHSL(hsl);
+
+    try testing.expectApproxEqAbs(1.0, rgb.red, 0.01);
+    try testing.expectApproxEqAbs(0.0, rgb.green, 0.01);
+    try testing.expectApproxEqAbs(0.0, rgb.blue, 0.01);
+}
+
+pub const HSV = struct {
+    /// Range: [0,1]
     hue: f32,
-    ///Range: [0,1]
+    /// Range: [0,1]
     saturation: f32,
-    ///Range: [0,1]
+    /// Range: [0,1]
     value: f32,
 
-    pub fn create(hue: f32, saturation: f32, value: f32) Self {
-        return Self{
-            .hue = pico.math.mod(f32, hue, 1.0, .euclidean),
-            .saturation = @max(@min(saturation, 1.0), 0.0),
-            .value = @max(@min(value, 1.0), 0.0),
+    pub fn create(hue: f32, saturation: f32, value: f32) HSV {
+        return (HSV{
+            .hue = hue,
+            .saturation = saturation,
+            .value = value,
+        }).normalize();
+    }
+
+    pub fn normalize(self: HSV) HSV {
+        return HSV{
+            .hue = pico.math.mod(f32, self.hue, 1.0, .euclidean),
+            .saturation = @max(@min(self.saturation, 1.0), 0.0),
+            .value = @max(@min(self.value, 1.0), 0.0),
         };
     }
 
-    pub fn fromRGB(rgb: RGB) Self {
+    fn getVec(self: HSV) Vector3 {
+        return Vector3.create(self.hue, self.saturation, self.value);
+    }
+
+    fn fromVec(vec: Vector3) HSV {
+        return HSV.create(vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn fromRGB(rgb: RGB) HSV {
         const rgb_max = @max(@max(rgb.red, rgb.green), rgb.blue);
         const rgb_min = @min(@min(rgb.red, rgb.green), rgb.blue);
 
@@ -201,7 +185,7 @@ pub const HSV = struct {
         return create(hue, saturation, value);
     }
 
-    pub fn fromHSL(hsl: HSL) Self {
+    pub fn fromHSL(hsl: HSL) HSV {
         const value = hsl.lightness + hsl.saturation * @min(hsl.lightness, 1 - hsl.lightness);
 
         var saturation: f32 = 0.0;
@@ -213,25 +197,65 @@ pub const HSV = struct {
     }
 };
 
-pub const HSL = struct {
-    const Self = @This();
+test "hsv create" {
+    const hsv = HSV.create(2.0, 0.5, 0.3);
 
-    /// Range: [0, 1]
+    try testing.expectApproxEqAbs(0.0, hsv.hue, 0.01);
+    try testing.expectApproxEqAbs(0.5, hsv.saturation, 0.01);
+    try testing.expectApproxEqAbs(0.3, hsv.value, 0.01);
+}
+
+test "hsv from rgb" {
+    const rgb = RGB.create(1.0, 0.0, 0.0);
+    const hsv = HSV.fromRGB(rgb);
+
+    try testing.expectApproxEqAbs(0.0, hsv.hue, 0.01);
+    try testing.expectApproxEqAbs(1.0, hsv.saturation, 0.01);
+    try testing.expectApproxEqAbs(1.0, hsv.value, 0.01);
+}
+
+test "hsv from hsl" {
+    const hsl = HSL.create(1.0, 1.0, 0.5);
+    const hsv = HSV.fromHSL(hsl);
+
+    try testing.expectApproxEqAbs(0.0, hsv.hue, 0.01);
+    try testing.expectApproxEqAbs(1.0, hsv.saturation, 0.01);
+    try testing.expectApproxEqAbs(1.0, hsv.value, 0.01);
+}
+
+pub const HSL = struct {
+    /// Range: [0,1]
     hue: f32,
-    ///Range: [0,1]
+    /// Range: [0,1]
     saturation: f32,
-    ///Range: [0,1]
+    /// Range: [0,1]
     lightness: f32,
 
-    pub fn create(hue: f32, saturation: f32, lightness: f32) Self {
-        return Self{
-            .hue = pico.math.mod(f32, hue, 1.0, .euclidean),
-            .saturation = @max(@min(saturation, 1.0), 0.0),
-            .lightness = @max(@min(lightness, 1.0), 0.0),
+    pub fn create(hue: f32, saturation: f32, lightness: f32) HSL {
+        return (HSL{
+            .hue = hue,
+            .saturation = saturation,
+            .lightness = lightness,
+        }).normalize();
+    }
+
+    pub fn normalize(self: HSL) HSL {
+        return HSL{
+            .hue = pico.math.mod(f32, self.hue, 1.0, .euclidean),
+            .saturation = @max(@min(self.saturation, 1.0), 0.0),
+            .lightness = @max(@min(self.lightness, 1.0), 0.0),
         };
     }
 
-    pub fn fromRGB(rgb: RGB) Self {
+    fn getVec(self: HSL) Vector3 {
+        return Vector3.create(self.hue, self.saturation, self.lightness);
+    }
+
+    fn fromVec(vec: Vector3) HSL {
+        return HSL.create(vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn fromRGB(rgb: RGB) HSL {
         const rgb_max = @max(@max(rgb.red, rgb.green), rgb.blue);
         const rgb_min = @min(@min(rgb.red, rgb.green), rgb.blue);
 
@@ -239,7 +263,7 @@ pub const HSL = struct {
         const chroma = rgb_max - rgb_min;
         const lightness = (rgb_max + rgb_min) / 2.0;
 
-        var hue = 0.0;
+        var hue: f32 = 0.0;
         if (chroma == 0.0) {
             hue = 0.0;
         } else if (value == rgb.red) {
@@ -255,10 +279,10 @@ pub const HSL = struct {
             saturation = (value - lightness) / @min(lightness, 1 - lightness);
         }
 
-        return create(hue, saturation, value);
+        return create(hue, saturation, lightness);
     }
 
-    pub fn fromHSV(hsv: HSV) Self {
+    pub fn fromHSV(hsv: HSV) HSL {
         const lightness = hsv.value * (1.0 - hsv.saturation / 2.0);
 
         var saturation: f32 = 0.0;
@@ -270,13 +294,38 @@ pub const HSL = struct {
     }
 };
 
+test "hsl create" {
+    const hsl = HSL.create(2.0, 0.5, 0.3);
+
+    try testing.expectApproxEqAbs(0.0, hsl.hue, 0.01);
+    try testing.expectApproxEqAbs(0.5, hsl.saturation, 0.01);
+    try testing.expectApproxEqAbs(0.3, hsl.lightness, 0.01);
+}
+
+test "hsl from rgb" {
+    const rgb = RGB.create(1.0, 0.0, 0.0);
+    const hsl = HSL.fromRGB(rgb);
+
+    try testing.expectApproxEqAbs(0.0, hsl.hue, 0.01);
+    try testing.expectApproxEqAbs(1.0, hsl.saturation, 0.01);
+    try testing.expectApproxEqAbs(0.5, hsl.lightness, 0.01);
+}
+
+test "hsl from hsv" {
+    const hsv = HSV.create(1.0, 1.0, 1.0);
+    const hsl = HSL.fromHSV(hsv);
+
+    try testing.expectApproxEqAbs(0.0, hsl.hue, 0.01);
+    try testing.expectApproxEqAbs(1.0, hsl.saturation, 0.01);
+    try testing.expectApproxEqAbs(0.5, hsl.lightness, 0.01);
+}
+
 pub const RGBW = struct {
-    const Self = @This();
     rgb: RGB,
     white: f32,
 
-    pub fn create(red: f32, green: f32, blue: f32, white: f32) Self {
-        return (Self{
+    pub fn create(red: f32, green: f32, blue: f32, white: f32) RGBW {
+        return (RGBW{
             .rgb = RGB{
                 .red = red,
                 .green = green,
@@ -286,81 +335,23 @@ pub const RGBW = struct {
         }).normalize();
     }
 
-    pub fn normalize(self: Self) Self {
-        return Self{
+    fn getVec(self: RGBW) Vector4 {
+        return Vector4.create(self.rgb.red, self.rgb.green, self.rgb.blue, self.white);
+    }
+
+    fn fromVec(vec: Vector4) RGBW {
+        return RGBW.create(vec.w(), vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn normalize(self: RGBW) RGBW {
+        return RGBW{
             .rgb = self.rgb.normalize(),
             .white = @max(@min(self.white, 1.0), 0.0),
         };
     }
 
-    pub fn add(
-        self: Self,
-        other: Self,
-    ) Self {
-        const rgb_result = self.rgb.add(other.rgb);
-        return Self{
-            .rgb = rgb_result,
-            .white = self.white + other.white,
-        };
-    }
-
-    pub fn sub(
-        self: Self,
-        other: Self,
-    ) Self {
-        const rgb_result = self.rgb.sub(other.rgb);
-        return Self{
-            .rgb = rgb_result,
-            .white = self.white - other.white,
-        };
-    }
-
-    pub fn mul(
-        self: Self,
-        other: Self,
-    ) Self {
-        const rgb_result = self.rgb.mul(other.rgb);
-        return Self{
-            .rgb = rgb_result,
-            .white = self.white * other.white,
-        };
-    }
-
-    pub fn div(
-        self: Self,
-        other: Self,
-    ) Self {
-        const rgb_result = self.rgb.div(other.rgb);
-        return Self{
-            .rgb = rgb_result,
-            .white = self.white / other.white,
-        };
-    }
-
-    pub fn addScalar(
-        self: Self,
-        other: f32,
-    ) Self {
-        const rgb_result = self.rgb.addScalar(other);
-        return Self{
-            .rgb = rgb_result,
-            .white = self.white + other,
-        };
-    }
-
-    pub fn mulScalar(
-        self: Self,
-        other: f32,
-    ) Self {
-        const rgb_result = self.rgb.mulScalar(other);
-        return Self{
-            .rgb = rgb_result,
-            .white = self.white * other,
-        };
-    }
-
     pub fn format(
-        self: Self,
+        self: RGBW,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
@@ -377,5 +368,67 @@ pub const RGBW = struct {
                 terminal.reset ++ "}}",
             .{ self.rgb.red, self.rgb.green, self.rgb.blue, self.white },
         );
+    }
+};
+
+pub const HSVW = struct {
+    hsv: HSV,
+    white: f32,
+
+    pub fn create(hue: f32, saturation: f32, value: f32, white: f32) HSVW {
+        return (HSVW{
+            .hsv = HSV{
+                .hue = hue,
+                .saturation = saturation,
+                .value = value,
+            },
+            .white = white,
+        }).normalize();
+    }
+
+    fn getVec(self: HSVW) Vector4 {
+        return Vector4.create(self.hsv.hue, self.hsv.saturation, self.hsv.value, self.white);
+    }
+
+    fn fromVec(vec: Vector4) HSVW {
+        return HSVW.create(vec.w(), vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn normalize(self: HSVW) HSVW {
+        return HSVW{
+            .hsv = self.hsv.normalize(),
+            .white = @max(@min(self.white, 1.0), 0.0),
+        };
+    }
+};
+
+pub const HSLW = struct {
+    hsl: HSL,
+    white: f32,
+
+    pub fn create(hue: f32, saturation: f32, lightness: f32, white: f32) HSLW {
+        return (HSLW{
+            .hsl = HSL{
+                .hue = hue,
+                .saturation = saturation,
+                .lightness = lightness,
+            },
+            .white = white,
+        }).normalize();
+    }
+
+    fn getVec(self: HSLW) Vector4 {
+        return Vector4.create(self.hsl.hue, self.hsl.saturation, self.hsl.lightness, self.white);
+    }
+
+    fn fromVec(vec: Vector4) HSLW {
+        return HSLW.create(vec.w(), vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn normalize(self: HSLW) HSLW {
+        return HSLW{
+            .hsl = self.hsl.normalize(),
+            .white = @max(@min(self.white, 1.0), 0.0),
+        };
     }
 };

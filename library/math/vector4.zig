@@ -75,6 +75,15 @@ pub fn Vector4(T: type) type {
             };
         }
 
+        pub fn clamp(self: *const Self, min: T, max: T) Self {
+            return Self.create(
+                @max(@min(self.w(), max), min),
+                @max(@min(self.x(), max), min),
+                @max(@min(self.y(), max), min),
+                @max(@min(self.z(), max), min),
+            );
+        }
+
         pub fn angleBetween(self: *const Self, other: Self) T {
             return math.acos(self.normalize().dot(other.normalize()));
         }

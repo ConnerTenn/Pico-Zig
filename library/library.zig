@@ -17,5 +17,6 @@ pub const String = @import("String.zig");
 
 comptime {
     _ = math;
+    _ = colour;
     _ = String;
 }

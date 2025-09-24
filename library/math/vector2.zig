@@ -67,6 +67,13 @@ pub fn Vector2(T: type) type {
             };
         }
 
+        pub fn clamp(self: *const Self, min: T, max: T) Self {
+            return Self.create(
+                @max(@min(self.x(), max), min),
+                @max(@min(self.y(), max), min),
+            );
+        }
+
         pub fn rotate(self: *const Self, angle: T) Self {
             const cos = math.cos(angle);
             const sin = math.sin(angle);

@@ -91,6 +91,14 @@ pub fn Vector3(T: type) type {
             };
         }
 
+        pub fn clamp(self: *const Self, min: T, max: T) Self {
+            return Self.create(
+                @max(@min(self.x(), max), min),
+                @max(@min(self.y(), max), min),
+                @max(@min(self.z(), max), min),
+            );
+        }
+
         pub fn rotate(self: *const Self, axis: Self, angle: T) Self {
             // Normalize the axis
             const axis_normalized = axis.normalize();
