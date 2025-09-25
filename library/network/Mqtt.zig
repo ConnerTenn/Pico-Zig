@@ -41,7 +41,6 @@ pub const RecvCallback = struct {
 };
 pub const TopicCallback = struct {
     ctx: ?*anyopaque,
-    topic: Topic,
     callbacck: *const fn (ctx: ?*anyopaque, message: []const u8) void,
 };
 
@@ -68,9 +67,13 @@ pub fn destroy(self: *Mqtt) void {
     }
 }
 
-// pub fn setCallbacks(self: *Mqtt, callbacks: Callbacks) void {
-//     self.callbacks = callbacks;
-// }
+pub fn setConnectedCallback(self: *Mqtt, connected_callback: ConnectedCallback) void {
+    self.connected_callback = connected_callback;
+}
+
+pub fn setRecvCallback(self: *Mqtt, recv_callback: ?RecvCallback) void {
+    self.recv_callback = recv_callback;
+}
 
 pub fn connect(self: *Mqtt, address: network.IpV4Addr, port: u16, disconnect_message: DisconnectMessage) !void {
     network.enterCriticalSection();
@@ -115,7 +118,7 @@ pub fn connected(self: *Mqtt) bool {
 
 pub fn subscribe(self: *Mqtt, topic: Topic, qos: QOS, prepend_client_id: bool, topic_callback: ?TopicCallback) !void {
     var subscribe_topic = switch (prepend_client_id) {
-        false => topic,
+        false => topic.clone(),
         true => self.client_id_topic.concat(topic),
     };
     defer subscribe_topic.destroy();
@@ -138,11 +141,12 @@ pub fn subscribe(self: *Mqtt, topic: Topic, qos: QOS, prepend_client_id: bool, t
     }
 }
 
-pub fn publish(self: *Mqtt, comptime topic: Topic, message: []const u8, qos: QOS, retain: Retain, prepend_client_id: bool) !void {
+pub fn publish(self: *Mqtt, topic: Topic, message: []const u8, qos: QOS, retain: Retain, prepend_client_id: bool) !void {
     var publish_topic = switch (prepend_client_id) {
-        false => topic,
+        false => topic.clone(),
         true => self.client_id_topic.concat(topic),
     };
+    defer publish_topic.destroy();
 
     stdio.print(
         terminal.magenta ++ "Publish" ++ terminal.reset ++ " {} <- \"" ++ terminal.bold ++ "{s}" ++ terminal.reset ++ "\"\n",
@@ -295,7 +299,7 @@ pub const Topic = struct {
     }
 
     pub fn clone(self: Topic) Topic {
-        return Topic.create(self.string.string);
+        return Topic.create(self.string.getSlice());
     }
 
     pub fn destroy(self: *Topic) void {
