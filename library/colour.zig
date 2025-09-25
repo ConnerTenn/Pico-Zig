@@ -5,8 +5,8 @@ const testing = std.testing;
 const pico = @import("../pico.zig");
 const terminal = pico.library.terminal;
 
-const Vector3 = pico.library.math.Vector3(f32);
-const Vector4 = pico.library.math.Vector4(f32);
+pub const Vector3 = pico.library.math.Vector3(f32);
+pub const Vector4 = pico.library.math.Vector4(f32);
 
 // Reference: https://en.wikipedia.org/wiki/HSL_and_HSV
 
@@ -26,20 +26,32 @@ pub const RGB = struct {
         }).normalize();
     }
 
-    fn getVec(self: RGB) Vector3 {
-        return Vector3.create(self.red, self.green, self.blue);
-    }
-
-    fn fromVec(vec: Vector3) RGB {
-        return RGB.create(vec.x(), vec.y(), vec.z());
-    }
-
     pub fn normalize(self: RGB) RGB {
         return RGB{
             .red = @max(@min(self.red, 1.0), 0.0),
             .green = @max(@min(self.green, 1.0), 0.0),
             .blue = @max(@min(self.blue, 1.0), 0.0),
         };
+    }
+
+    inline fn getVec(self: RGB) Vector3 {
+        return Vector3.create(self.red, self.green, self.blue);
+    }
+
+    inline fn fromVec(vec: Vector3) RGB {
+        return RGB.create(vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn add(self: RGB, other: RGB) RGB {
+        return RGB.fromVec(self.getVec().add(other.getVec()));
+    }
+
+    pub fn sub(self: RGB, other: RGB) RGB {
+        return RGB.fromVec(self.getVec().sub(other.getVec()));
+    }
+
+    pub fn mulScalar(self: RGB, scalar: f32) RGB {
+        return RGB.fromVec(self.getVec().mul(Vector3.createScalar(scalar)));
     }
 
     pub fn fromHSV(hsv: HSV) RGB {
@@ -151,12 +163,24 @@ pub const HSV = struct {
         };
     }
 
-    fn getVec(self: HSV) Vector3 {
+    inline fn getVec(self: HSV) Vector3 {
         return Vector3.create(self.hue, self.saturation, self.value);
     }
 
-    fn fromVec(vec: Vector3) HSV {
+    inline fn fromVec(vec: Vector3) HSV {
         return HSV.create(vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn add(self: HSV, other: HSV) HSV {
+        return HSV.fromVec(self.getVec().add(other.getVec()));
+    }
+
+    pub fn sub(self: HSV, other: HSV) HSV {
+        return HSV.fromVec(self.getVec().sub(other.getVec()));
+    }
+
+    pub fn mulScalar(self: HSV, scalar: f32) HSV {
+        return HSV.fromVec(self.getVec().mul(Vector3.createScalar(scalar)));
     }
 
     pub fn fromRGB(rgb: RGB) HSV {
@@ -247,12 +271,24 @@ pub const HSL = struct {
         };
     }
 
-    fn getVec(self: HSL) Vector3 {
+    inline fn getVec(self: HSL) Vector3 {
         return Vector3.create(self.hue, self.saturation, self.lightness);
     }
 
-    fn fromVec(vec: Vector3) HSL {
+    inline fn fromVec(vec: Vector3) HSL {
         return HSL.create(vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn add(self: HSL, other: HSL) HSL {
+        return HSL.fromVec(self.getVec().add(other.getVec()));
+    }
+
+    pub fn sub(self: HSL, other: HSL) HSL {
+        return HSL.fromVec(self.getVec().sub(other.getVec()));
+    }
+
+    pub fn mulScalar(self: HSL, scalar: f32) HSL {
+        return HSL.fromVec(self.getVec().mul(Vector3.createScalar(scalar)));
     }
 
     pub fn fromRGB(rgb: RGB) HSL {
@@ -335,19 +371,31 @@ pub const RGBW = struct {
         }).normalize();
     }
 
-    fn getVec(self: RGBW) Vector4 {
-        return Vector4.create(self.rgb.red, self.rgb.green, self.rgb.blue, self.white);
-    }
-
-    fn fromVec(vec: Vector4) RGBW {
-        return RGBW.create(vec.w(), vec.x(), vec.y(), vec.z());
-    }
-
     pub fn normalize(self: RGBW) RGBW {
         return RGBW{
             .rgb = self.rgb.normalize(),
             .white = @max(@min(self.white, 1.0), 0.0),
         };
+    }
+
+    inline fn getVec(self: RGBW) Vector4 {
+        return Vector4.create(self.rgb.red, self.rgb.green, self.rgb.blue, self.white);
+    }
+
+    inline fn fromVec(vec: Vector4) RGBW {
+        return RGBW.create(vec.w(), vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn add(self: RGBW, other: RGBW) RGBW {
+        return RGBW.fromVec(self.getVec().add(other.getVec()));
+    }
+
+    pub fn sub(self: RGBW, other: RGBW) RGBW {
+        return RGBW.fromVec(self.getVec().sub(other.getVec()));
+    }
+
+    pub fn mulScalar(self: RGBW, scalar: f32) RGBW {
+        return RGBW.fromVec(self.getVec().mul(Vector4.createScalar(scalar)));
     }
 
     pub fn format(
@@ -386,19 +434,31 @@ pub const HSVW = struct {
         }).normalize();
     }
 
-    fn getVec(self: HSVW) Vector4 {
-        return Vector4.create(self.hsv.hue, self.hsv.saturation, self.hsv.value, self.white);
-    }
-
-    fn fromVec(vec: Vector4) HSVW {
-        return HSVW.create(vec.w(), vec.x(), vec.y(), vec.z());
-    }
-
     pub fn normalize(self: HSVW) HSVW {
         return HSVW{
             .hsv = self.hsv.normalize(),
             .white = @max(@min(self.white, 1.0), 0.0),
         };
+    }
+
+    inline fn getVec(self: HSVW) Vector4 {
+        return Vector4.create(self.hsv.hue, self.hsv.saturation, self.hsv.value, self.white);
+    }
+
+    inline fn fromVec(vec: Vector4) HSVW {
+        return HSVW.create(vec.w(), vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn add(self: HSVW, other: HSVW) HSVW {
+        return HSVW.fromVec(self.getVec().add(other.getVec()));
+    }
+
+    pub fn sub(self: HSVW, other: HSVW) HSVW {
+        return HSVW.fromVec(self.getVec().sub(other.getVec()));
+    }
+
+    pub fn mulScalar(self: HSVW, scalar: f32) HSVW {
+        return HSVW.fromVec(self.getVec().mul(Vector4.createScalar(scalar)));
     }
 };
 
@@ -417,18 +477,30 @@ pub const HSLW = struct {
         }).normalize();
     }
 
-    fn getVec(self: HSLW) Vector4 {
-        return Vector4.create(self.hsl.hue, self.hsl.saturation, self.hsl.lightness, self.white);
-    }
-
-    fn fromVec(vec: Vector4) HSLW {
-        return HSLW.create(vec.w(), vec.x(), vec.y(), vec.z());
-    }
-
     pub fn normalize(self: HSLW) HSLW {
         return HSLW{
             .hsl = self.hsl.normalize(),
             .white = @max(@min(self.white, 1.0), 0.0),
         };
+    }
+
+    inline fn getVec(self: HSLW) Vector4 {
+        return Vector4.create(self.hsl.hue, self.hsl.saturation, self.hsl.lightness, self.white);
+    }
+
+    inline fn fromVec(vec: Vector4) HSLW {
+        return HSLW.create(vec.w(), vec.x(), vec.y(), vec.z());
+    }
+
+    pub fn add(self: HSLW, other: HSLW) HSLW {
+        return HSLW.fromVec(self.getVec().add(other.getVec()));
+    }
+
+    pub fn sub(self: HSLW, other: HSLW) HSLW {
+        return HSLW.fromVec(self.getVec().sub(other.getVec()));
+    }
+
+    pub fn mulScalar(self: HSLW, scalar: f32) HSLW {
+        return HSLW.fromVec(self.getVec().mul(Vector4.createScalar(scalar)));
     }
 };
