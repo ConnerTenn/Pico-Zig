@@ -39,7 +39,11 @@ pub const RGB = struct {
     }
 
     inline fn fromVec(vec: Vector3) RGB {
-        return RGB.create(vec.x(), vec.y(), vec.z());
+        return RGB{
+            .red = vec.w(),
+            .green = vec.x(),
+            .blue = vec.y(),
+        };
     }
 
     pub fn add(self: RGB, other: RGB) RGB {
@@ -168,7 +172,11 @@ pub const HSV = struct {
     }
 
     inline fn fromVec(vec: Vector3) HSV {
-        return HSV.create(vec.x(), vec.y(), vec.z());
+        return HSV{
+            .hue = vec.w(),
+            .saturation = vec.x(),
+            .value = vec.y(),
+        };
     }
 
     pub fn add(self: HSV, other: HSV) HSV {
@@ -276,7 +284,11 @@ pub const HSL = struct {
     }
 
     inline fn fromVec(vec: Vector3) HSL {
-        return HSL.create(vec.x(), vec.y(), vec.z());
+        return HSL{
+            .hue = vec.w(),
+            .saturation = vec.x(),
+            .lightness = vec.y(),
+        };
     }
 
     pub fn add(self: HSL, other: HSL) HSL {
@@ -383,7 +395,14 @@ pub const RGBW = struct {
     }
 
     inline fn fromVec(vec: Vector4) RGBW {
-        return RGBW.create(vec.w(), vec.x(), vec.y(), vec.z());
+        return RGBW{
+            .rgb = RGB{
+                .red = vec.w(),
+                .green = vec.x(),
+                .blue = vec.y(),
+            },
+            .white = vec.z(),
+        };
     }
 
     pub fn add(self: RGBW, other: RGBW) RGBW {
@@ -446,7 +465,14 @@ pub const HSVW = struct {
     }
 
     inline fn fromVec(vec: Vector4) HSVW {
-        return HSVW.create(vec.w(), vec.x(), vec.y(), vec.z());
+        return HSVW{
+            .hsv = HSV{
+                .hue = vec.w(),
+                .saturation = vec.x(),
+                .value = vec.y(),
+            },
+            .white = vec.z(),
+        };
     }
 
     pub fn add(self: HSVW, other: HSVW) HSVW {
@@ -489,7 +515,14 @@ pub const HSLW = struct {
     }
 
     inline fn fromVec(vec: Vector4) HSLW {
-        return HSLW.create(vec.w(), vec.x(), vec.y(), vec.z());
+        return HSLW{
+            .hsl = HSL{
+                .hue = vec.w(),
+                .saturation = vec.x(),
+                .lightness = vec.y(),
+            },
+            .white = vec.z(),
+        };
     }
 
     pub fn add(self: HSLW, other: HSLW) HSLW {
