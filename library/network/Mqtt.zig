@@ -113,6 +113,9 @@ pub fn connect(self: *Mqtt, address: network.IpV4Addr, port: u16, disconnect_mes
 }
 
 pub fn connected(self: *Mqtt) bool {
+    network.enterCriticalSection();
+    defer network.exitCriticalSection();
+
     return csdk.mqtt_client_is_connected(self.mqtt_client) == 1;
 }
 
@@ -125,7 +128,9 @@ pub fn subscribe(self: *Mqtt, topic: Topic, qos: QOS, prepend_client_id: bool, t
 
     stdio.print(terminal.magenta ++ "Subscribe" ++ terminal.reset ++ " to {s}\n", .{subscribe_topic});
 
+    network.enterCriticalSection();
     const err = csdk.mqtt_sub_unsub(self.mqtt_client, subscribe_topic.getSentinel().ptr, @intFromEnum(qos), subRequestCallback, self, 1);
+    network.exitCriticalSection();
 
     if (network.hasError(
         err,
@@ -135,9 +140,10 @@ pub fn subscribe(self: *Mqtt, topic: Topic, qos: QOS, prepend_client_id: bool, t
     }
 
     if (topic_callback) |callback| {
+        stdio.print(terminal.magenta ++ "- Registering callback for " ++ terminal.reset ++ "{s}\n", .{subscribe_topic});
         // This will allocate new memory for the StringHashMap key
         // This leaks memory, but since we don't consider unsubscribing from topics this isn't detrimental
-        try self.topic_callbacks.put(topic.clone().getSentinel(), callback);
+        try self.topic_callbacks.put(subscribe_topic.clone().getSentinel(), callback);
     }
 }
 
@@ -153,7 +159,9 @@ pub fn publish(self: *Mqtt, topic: Topic, message: []const u8, qos: QOS, retain:
         .{ publish_topic, message },
     );
 
+    network.enterCriticalSection();
     const err = csdk.mqtt_publish(self.mqtt_client, publish_topic.getSentinel().ptr, message.ptr, @intCast(message.len), @intFromEnum(qos), @intFromEnum(retain), mqttPubRequestCallback, self);
+    network.exitCriticalSection();
 
     if (network.hasError(
         err,
@@ -249,7 +257,7 @@ fn dataCallback(arg: ?*anyopaque, raw_data: [*c]const u8, len: u16, flags: u8) c
         if (flags == csdk.MQTT_DATA_FLAG_LAST) {
             if (self.active_topic) |*active_topic| {
                 stdio.print(
-                    terminal.magenta ++ "Recv" ++ terminal.reset ++ " {} <- \"" ++ terminal.bold ++ "{s}" ++ terminal.reset ++ "\"\n",
+                    terminal.magenta ++ "Recv   " ++ terminal.reset ++ " {} <- \"" ++ terminal.bold ++ "{s}" ++ terminal.reset ++ "\"\n",
                     .{ active_topic.*, active_message.getSlice() },
                 );
 
