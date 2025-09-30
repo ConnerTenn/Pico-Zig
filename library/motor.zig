@@ -84,7 +84,7 @@ pub fn Motor(comptime use_calibration: bool) type {
                     //Collect a number of samples and average them
                     const measured_angle: f32 = self.sensor.getAngle();
 
-                    self.calibration_data[sample_idx] += pico.math.deltaError(f32, measured_angle, target_angle, tau); // target_angle - measured_angle;
+                    self.calibration_data[sample_idx] += pico.library.math.deltaError(f32, measured_angle, target_angle, tau); // target_angle - measured_angle;
                     // stdio.print("\n", .{});
                 }
             }
@@ -118,7 +118,7 @@ pub fn Motor(comptime use_calibration: bool) type {
 
                 //Get the compesated angle using the calibration data
                 var compensated_angle = raw_angle - self.calibration_data[sample_idx];
-                compensated_angle = pico.math.mod(f32, compensated_angle, tau, .truncated);
+                compensated_angle = pico.library.math.mod(f32, compensated_angle, tau, .truncated);
                 // stdio.print("{d: >3}:{d: >6.3}  ", .{ sample_idx, self.calibration_data[sample_idx] });
                 // stdio.print("{d: >6.3} -> {d: >6.3}  ", .{ raw_angle, compensated_angle });
 
@@ -240,9 +240,9 @@ pub const PwmDriver = struct {
 
     fn setPwmFromVoltages(self: Self, voltages: foc.PhaseVoltage) void {
         // stdio.print("{}\n", .{voltages});
-        self.u_axis_pins.setLevel(pico.math.rescaleAsInt(u16, math.clamp(voltages.u_axis, -1, 1), self.u_axis_pins.counter_wrap));
-        self.v_axis_pins.setLevel(pico.math.rescaleAsInt(u16, math.clamp(voltages.v_axis, -1, 1), self.u_axis_pins.counter_wrap));
-        self.w_axis_pins.setLevel(pico.math.rescaleAsInt(u16, math.clamp(voltages.w_axis, -1, 1), self.u_axis_pins.counter_wrap));
+        self.u_axis_pins.setLevel(pico.library.math.rescaleAsInt(u16, math.clamp(voltages.u_axis, -1, 1), self.u_axis_pins.counter_wrap));
+        self.v_axis_pins.setLevel(pico.library.math.rescaleAsInt(u16, math.clamp(voltages.v_axis, -1, 1), self.u_axis_pins.counter_wrap));
+        self.w_axis_pins.setLevel(pico.library.math.rescaleAsInt(u16, math.clamp(voltages.w_axis, -1, 1), self.u_axis_pins.counter_wrap));
     }
 
     pub fn setTorque(self: Self, direct_torque: f32, tangent_torque: f32, angle: f32) void {

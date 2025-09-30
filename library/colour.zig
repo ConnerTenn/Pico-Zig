@@ -61,7 +61,7 @@ pub const RGB = struct {
     pub fn fromHSV(hsv: HSV) RGB {
         const hue_region: u8 = @intFromFloat(6.0 * hsv.hue);
         const chroma = hsv.value * hsv.saturation;
-        const chroma_fade = chroma * (1.0 - @abs(pico.math.mod(f32, 6.0 * hsv.hue, 2.0, .euclidean) - 1.0));
+        const chroma_fade = chroma * (1.0 - @abs(pico.library.math.mod(f32, 6.0 * hsv.hue, 2.0, .euclidean) - 1.0));
 
         var rgb = switch (hue_region) {
             0 => create(chroma, chroma_fade, 0.0),
@@ -84,7 +84,7 @@ pub const RGB = struct {
     pub fn fromHSL(hsl: HSL) RGB {
         const hue_region: u8 = @intFromFloat(6.0 * hsl.hue);
         const chroma = (1.0 - @abs(2.0 * hsl.lightness - 1.0)) * hsl.saturation;
-        const chroma_fade = chroma * (1.0 - @abs(pico.math.mod(f32, 6.0 * hsl.hue, 2.0, .euclidean) - 1.0));
+        const chroma_fade = chroma * (1.0 - @abs(pico.library.math.mod(f32, 6.0 * hsl.hue, 2.0, .euclidean) - 1.0));
 
         return switch (hue_region) {
             0 => create(chroma, chroma_fade, 0.0),
@@ -161,7 +161,7 @@ pub const HSV = struct {
 
     pub fn normalize(self: HSV) HSV {
         return HSV{
-            .hue = pico.math.mod(f32, self.hue, 1.0, .euclidean),
+            .hue = pico.library.math.mod(f32, self.hue, 1.0, .euclidean),
             .saturation = @max(@min(self.saturation, 1.0), 0.0),
             .value = @max(@min(self.value, 1.0), 0.0),
         };
@@ -202,7 +202,7 @@ pub const HSV = struct {
         if (chroma == 0.0) {
             hue = 0.0;
         } else if (value == rgb.red) {
-            hue = (pico.math.mod(f32, (rgb.green - rgb.blue) / chroma, 6.0, .euclidean)) / 6.0;
+            hue = (pico.library.math.mod(f32, (rgb.green - rgb.blue) / chroma, 6.0, .euclidean)) / 6.0;
         } else if (value == rgb.green) {
             hue = ((rgb.blue - rgb.red) / chroma + 2) / 6.0;
         } else if (value == rgb.blue) {
@@ -273,7 +273,7 @@ pub const HSL = struct {
 
     pub fn normalize(self: HSL) HSL {
         return HSL{
-            .hue = pico.math.mod(f32, self.hue, 1.0, .euclidean),
+            .hue = pico.library.math.mod(f32, self.hue, 1.0, .euclidean),
             .saturation = @max(@min(self.saturation, 1.0), 0.0),
             .lightness = @max(@min(self.lightness, 1.0), 0.0),
         };
@@ -315,7 +315,7 @@ pub const HSL = struct {
         if (chroma == 0.0) {
             hue = 0.0;
         } else if (value == rgb.red) {
-            hue = (pico.math.mod(f32, (rgb.green - rgb.blue) / chroma, 6.0, .euclidean)) / 6.0;
+            hue = (pico.library.math.mod(f32, (rgb.green - rgb.blue) / chroma, 6.0, .euclidean)) / 6.0;
         } else if (value == rgb.green) {
             hue = ((rgb.blue - rgb.red) / chroma + 2) / 6.0;
         } else if (value == rgb.blue) {

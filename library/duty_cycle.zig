@@ -65,7 +65,7 @@ pub const DutyCycle = struct {
 
         return ratio;
 
-        // const corrected_ratio = pico.math.remap(f32, ratio, 0.0038, 0.9981, 0.0, 1.0);
+        // const corrected_ratio = pico.library.math.remap(f32, ratio, 0.0038, 0.9981, 0.0, 1.0);
         // return corrected_ratio;
     }
 
@@ -81,6 +81,6 @@ pub const DutyCycle = struct {
         const correction_factor = 0.0238;
 
         const self: *Self = @alignCast(@ptrCast(ctx));
-        return pico.math.mod(f32, (self.readDutyCycle() - correction_factor) * math.tau, math.tau, .euclidean);
+        return pico.library.math.mod(f32, (self.readDutyCycle() - correction_factor) * math.tau, math.tau, .euclidean);
     }
 };

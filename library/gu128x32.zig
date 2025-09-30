@@ -352,7 +352,7 @@ pub const DisplayBuffer = struct {
     const num_lines = 4;
     const num_columns = 128;
 
-    const pixels_per_line = 8;
+    pub const pixels_per_line = 8;
     pub const width = num_columns;
     pub const height = num_lines * pixels_per_line;
 
