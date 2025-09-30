@@ -349,8 +349,12 @@ pub const GU128x32 = struct {
 pub const DisplayBuffer = struct {
     const Self = @This();
 
-    pub const num_lines = 4;
-    pub const num_columns = 128;
+    const num_lines = 4;
+    const num_columns = 128;
+
+    const pixels_per_line = 8;
+    pub const width = num_columns;
+    pub const height = num_lines * pixels_per_line;
 
     display_buffer: [num_lines][num_columns]u8 = undefined,
 
@@ -445,10 +449,10 @@ pub const DisplayBuffer = struct {
     }
 
     pub fn fillRectangle(self: *Self, x1: u7, y1: u5, x2: u7, y2: u5, pixel: bool) void {
-        const start_line = y1 / 8;
-        const end_line = y2 / 8;
-        const lower_bits_off: u3 = @intCast(y1 % 8);
-        const upper_bits_off: u3 = 7 - @as(u3, @intCast(y2 % 8));
+        const start_line = y1 / pixels_per_line;
+        const end_line = y2 / pixels_per_line;
+        const lower_bits_off: u3 = @intCast(y1 % pixels_per_line);
+        const upper_bits_off: u3 = 7 - @as(u3, @intCast(y2 % pixels_per_line));
 
         const upper_mask: u8 = (@as(u8, 0xFF) >> lower_bits_off) << lower_bits_off;
         const lower_mask: u8 = (@as(u8, 0xFF) << upper_bits_off) >> upper_bits_off;
