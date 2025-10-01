@@ -25,23 +25,93 @@ pub const ModType = enum {
 
     /// "Truncated division" on Wikipedia.
     /// Range (-denominator, denominator)
+    ///
+    /// Positive denominator:
+    /// .        /| / .
+    /// .       / |/  .
+    /// . -----+----- .
+    /// .  /| /       .
+    /// . / |/        .
+    ///
+    /// Negative denominator:
+    /// .        /| / .
+    /// .       / |/  .
+    /// . -----+----- .
+    /// .  /| /       .
+    /// . / |/        .
     truncated,
 
     /// "Euclidean division" on Wikipedia.
     /// Range: [0, denominator)
+    ///
+    /// Positive denominator:
+    /// .  /| /| /| / .
+    /// . / |/ |/ |/  .
+    /// . -----+----- .
+    /// .             .
+    /// .             .
+    ///
+    /// Negative denominator:
+    /// .  /| /| /| / .
+    /// . / |/ |/ |/  .
+    /// . -----+----- .
+    /// .             .
+    /// .             .
     euclidean,
 
     /// "Floored division" on Wikipedia.
     /// Positive denominator Range: [0, denominator)
     /// Negative denominator Range: (-denominator, 0]
+    ///
+    /// Positive denominator:
+    /// .  /| /| /| / .
+    /// . / |/ |/ |/  .
+    /// . -----+----- .
+    /// .             .
+    /// .             .
+    ///
+    /// Negative denominator:
+    /// .             .
+    /// .             .
+    /// . -----+----- .
+    /// .  /| /| /| / .
+    /// . / |/ |/ |/  .
     floored,
 
     /// "Rounded division" on Wikipedia
     /// Range: (-denominator/2, denominator/2)
+    ///
+    /// Positive denominator:
+    /// .             .
+    /// .   /|  /|  / .
+    /// . -----+----- .
+    /// . /  |/  |/   .
+    /// .             .
+    ///
+    /// Negative denominator:
+    /// .             .
+    /// .   /|  /|  / .
+    /// . -----+----- .
+    /// . /  |/  |/   .
+    /// .             .
     rounded,
 
     /// Not shown on wikipedia. This is the modulo of the abs value.
     /// Range: [0, denominator)
+    ///
+    /// Positive denominator:
+    /// . \ |\   /| / .
+    /// .  \| \ / |/  .
+    /// . -----+----- .
+    /// .             .
+    /// .             .
+    ///
+    /// Negative denominator:
+    /// . \ |\   /| / .
+    /// .  \| \ / |/  .
+    /// . -----+----- .
+    /// .             .
+    /// .             .
     mirror_y_axis,
 };
 
@@ -132,4 +202,26 @@ pub fn lerp(T: type, value: T, from: T, to: T) T {
 
 pub fn lerpInv(T: type, value: T, from: T, to: T) T {
     return (value - from) / (to - from);
+}
+
+const testing = std.testing;
+
+test "deltaError" {
+    try testing.expectApproxEqAbs(
+        0.4,
+        deltaError(f32, 0.5, 0.1, 1.0),
+        0.01,
+    );
+
+    try testing.expectApproxEqAbs(
+        0.1,
+        deltaError(f32, 0.0, 0.9, 1.0),
+        0.01,
+    );
+
+    try testing.expectApproxEqAbs(
+        -0.1,
+        deltaError(f32, 0.9, 0.0, 1.0),
+        0.01,
+    );
 }
