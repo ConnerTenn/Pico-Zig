@@ -391,45 +391,115 @@ pub const DisplayBuffer = struct {
     }
 
     // The Bresenham Line Drawing Algorithm
+    fn drawLineShallow(self: *Self, x1: i16, y1: i16, x2: i16, y2: i16, pixel: bool) void {
+        const dx: i16 = x2 - x1;
+        const dy: i16 = @intCast(@abs(y2 - y1));
+        const y_incr: i16 = if (y2 >= y1) 1 else -1;
+
+        var px = 2 * dy - dx;
+        var y: i16 = y1;
+        for (@as(u16, @intCast(x1))..@as(u16, @intCast(x2)) + 1) |x| {
+            setPixel(self, @intCast(x), @intCast(y), pixel);
+
+            if (px < 0) {
+                px = px + 2 * dy;
+            } else {
+                y += y_incr;
+                px = px + 2 * (dy - dx);
+            }
+        }
+    }
+    fn drawLineSteep(self: *Self, x1: i16, y1: i16, x2: i16, y2: i16, pixel: bool) void {
+        const dx: i16 = @intCast(@abs(x2 - x1));
+        const dy: i16 = y2 - y1;
+        const x_incr: i16 = if (x2 >= x1) 1 else -1;
+
+        var py = 2 * dx - dy;
+        var x: i16 = x1;
+        for (@as(u16, @intCast(y1))..@as(u16, @intCast(y2)) + 1) |y| {
+            setPixel(self, @intCast(x), @intCast(y), pixel);
+
+            if (py <= 0) {
+                py = py + 2 * dx;
+            } else {
+                x += x_incr;
+                py = py + 2 * (dx - dy);
+            }
+        }
+    }
     pub fn drawLine(self: *Self, x1: u7, y1: u5, x2: u7, y2: u5, pixel: bool) void {
-        const x_min: u16 = @min(x1, x2);
-        const x_max: u16 = @max(x1, x2);
+        const dx: i16 = @as(i16, x2) - @as(i16, x1);
+        const dy: i16 = @as(i16, y2) - @as(i16, y1);
 
-        const y_min: u16 = @min(y1, y2);
-        const y_max: u16 = @max(y1, y2);
-
-        const dx: i16 = @as(i16, @intCast(x_max)) - @as(i16, @intCast(x_min));
-        const dy: i16 = @as(i16, @intCast(y_max)) - @as(i16, @intCast(y_min));
-
-        if (dy <= dx) {
+        if (@abs(dy) <= @abs(dx)) {
             // Horizontal line
-
-            var px = 2 * dy - dx;
-            var y: i16 = y1;
-            for (x_min..x_max + 1) |x| {
-                setPixel(self, @intCast(x), @intCast(y), pixel);
-
-                if (px < 0) {
-                    px = px + 2 * dy;
-                } else {
-                    y += if (dy >= 0) 1 else -1;
-                    px = px + 2 * (dy - dx);
-                }
+            if (x1 > x2) {
+                self.drawLineShallow(x2, y2, x1, y1, pixel);
+            } else {
+                self.drawLineShallow(x1, y1, x2, y2, pixel);
             }
         } else {
             //Vertical line
+            if (y1 > y2) {
+                self.drawLineSteep(x2, y2, x1, y1, pixel);
+            } else {
+                self.drawLineSteep(x1, y1, x2, y2, pixel);
+            }
+        }
+    }
 
-            var py = 2 * dx - dy;
-            var x: i16 = x1;
-            for (y_min..y_max + 1) |y| {
-                setPixel(self, @intCast(x), @intCast(y), pixel);
+    // https://www.geeksforgeeks.org/dsa/mid-point-circle-drawing-algorithm/
+    pub fn drawCircle(self: *Self, center_x: u7, center_y: u5, radius: u7, pixel: bool) void {
+        const pxl = ((struct {
+            center_x: u7,
+            center_y: u5,
+            pixel_state: bool,
+            self: *Self,
+            fn put(draw_self: @This(), x: i16, y: i16) void {
+                draw_self.self.setPixel(@intCast(x + draw_self.center_x), @intCast(y + draw_self.center_y), draw_self.pixel_state);
+            }
+        }){
+            .center_x = center_x,
+            .center_y = center_y,
+            .pixel_state = pixel,
+            .self = self,
+        });
 
-                if (py <= 0) {
-                    py = py + 2 * dx;
-                } else {
-                    x += if (dx >= 0) 1 else -1;
-                    py = py + 2 * (dx - dy);
-                }
+        var x: i16 = radius;
+        var y: i16 = 0;
+
+        // Initial point on the axes
+        pxl.put(x, y);
+        // Reflections
+        pxl.put(-x, y);
+        pxl.put(y, x);
+        pxl.put(y, -x);
+
+        var p: i16 = 1 - @as(i16, @intCast(radius));
+        while (x > y) {
+            y += 1;
+
+            if (p <= 0) {
+                // Mid-point is inside or on the perimeter
+                p += 2 * y + 1;
+            } else {
+                // Mid-point is outside the perimeter
+                x -= 1;
+                p += 2 * y - 2 * x + 1;
+            }
+
+            // generated point and its reflections in the other octants
+            pxl.put(x, y);
+            pxl.put(-x, y);
+            pxl.put(x, -y);
+            pxl.put(-x, -y);
+
+            // Don't duplicate drawing on the x=y line
+            if (x != y) {
+                pxl.put(y, x);
+                pxl.put(-y, x);
+                pxl.put(y, -x);
+                pxl.put(-y, -x);
             }
         }
     }
