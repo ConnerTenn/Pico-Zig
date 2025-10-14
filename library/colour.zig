@@ -417,6 +417,20 @@ pub const RGBW = struct {
         return RGBW.fromVec(self.getVec().mul(Vector4.createScalar(scalar)));
     }
 
+    pub fn fromHSVW(hsvw: HSVW) RGBW {
+        return RGBW{
+            .rgb = RGB.fromHSV(hsvw.hsv),
+            .white = hsvw.white,
+        };
+    }
+
+    pub fn fromHSLW(hslw: HSLW) RGBW {
+        return RGBW{
+            .rgb = RGB.fromHSV(hslw.hsl),
+            .white = hslw.white,
+        };
+    }
+
     pub fn format(
         self: RGBW,
         comptime fmt: []const u8,
@@ -486,6 +500,13 @@ pub const HSVW = struct {
     pub fn mulScalar(self: HSVW, scalar: f32) HSVW {
         return HSVW.fromVec(self.getVec().mul(Vector4.createScalar(scalar)));
     }
+
+    pub fn fromRGBW(rgbw: RGBW) HSVW {
+        return HSVW{
+            .hsv = HSV.fromRGB(rgbw.rgb),
+            .white = rgbw.white,
+        };
+    }
 };
 
 pub const HSLW = struct {
@@ -535,5 +556,12 @@ pub const HSLW = struct {
 
     pub fn mulScalar(self: HSLW, scalar: f32) HSLW {
         return HSLW.fromVec(self.getVec().mul(Vector4.createScalar(scalar)));
+    }
+
+    pub fn fromRGBW(rgbw: RGBW) HSLW {
+        return HSLW{
+            .hsl = HSL.fromRGB(rgbw.rgb),
+            .white = rgbw.white,
+        };
     }
 };
