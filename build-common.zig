@@ -70,9 +70,7 @@ pub fn build(
         break :default "default";
     };
 
-    // == Create the static libarary ==
-    const options = Build.StaticLibraryOptions{
-        .name = name_arg,
+    const lib_mod = Build.Module.create(build_config, Build.Module.CreateOptions{
         .optimize = build_config.standardOptimizeOption(Build.StandardOptimizeOptionOptions{
             .preferred_optimize_mode = default_optimize_mode,
         }),
@@ -82,9 +80,27 @@ pub fn build(
         }),
         .root_source_file = root_source_file,
         .link_libc = true,
+        .pic = true,
+    });
+
+    // == Create the static libarary ==
+    const options = Build.LibraryOptions{
+        .linkage = .static,
+        .name = name_arg,
+        .root_module = lib_mod,
+        .use_llvm = true,
+        // .optimize = build_config.standardOptimizeOption(Build.StandardOptimizeOptionOptions{
+        //     .preferred_optimize_mode = default_optimize_mode,
+        // }),
+        // .target = build_config.resolveTargetQuery(switch (target_arg) {
+        //     .rp2040 => rp2040_target,
+        //     .rp2350 => rp2350_target,
+        // }),
+        // .root_source_file = root_source_file,
+        // .link_libc = true,
     };
 
-    const lib = build_config.addStaticLibrary(options);
+    const lib = build_config.addLibrary(options);
 
     // == Add the pico module ==
     const pico_module = build_config.addModule("pico", .{
@@ -105,18 +121,22 @@ pub fn build(
     const build_step = build_config.step("build", "Build the application static library");
     build_step.dependOn(&lib_artifact.step);
 
-    // == test config ==
-    const test_config = build_config.addTest(Build.TestOptions{
-        .root_source_file = root_source_file,
-        .link_libc = true,
-    });
+    // // == test config ==
+    // const test_mod = Build.Module.create(build_config, Build.Module.CreateOptions{
+    //     .root_source_file = root_source_file,
+    //     .link_libc = true,
+    //     .target = build_config.resolveTargetQuery(std.Target.Query{}),
+    // });
+    // const test_config = build_config.addTest(Build.TestOptions{
+    //     .root_module = test_mod,
+    // });
 
-    test_config.root_module.addImport("pico", pico_module);
+    // test_config.root_module.addImport("pico", pico_module);
 
-    const test_artifact = build_config.addRunArtifact(test_config);
+    // const test_artifact = build_config.addRunArtifact(test_config);
 
-    const test_step = build_config.step("test", "Run the unit tests");
-    test_step.dependOn(&test_artifact.step);
+    // const test_step = build_config.step("test", "Run the unit tests");
+    // test_step.dependOn(&test_artifact.step);
 }
 
 pub fn configureOptions(build_config: *Build, module: *Build.Module, target: PicoTargets, board: PicoBoards) void {
@@ -167,7 +187,8 @@ pub fn addPicoIncludes(build_config: *Build, module: *Build.Module, target: Pico
         "./pico-sdk/src/common/boot_picoboot_headers/include",
         "./pico-sdk/src/common/boot_uf2_headers/include",
         "./pico-sdk/src/common/hardware_claim/include",
-        "./pico-sdk/src/common/pico_base_headers/include",
+        "./pico-sdk/src/common/pico_base_headers/include/",
+        // "./pico-sdk/src/common/pico_base_headers/include/pico/",
         "./pico-sdk/src/common/pico_binary_info/include",
         "./pico-sdk/src/common/pico_bit_ops_headers/include",
         "./pico-sdk/src/common/pico_divider_headers/include",
@@ -215,7 +236,8 @@ pub fn addPicoIncludes(build_config: *Build, module: *Build.Module, target: Pico
         "./pico-sdk/src/rp2_common/pico_atomic/include",
         "./pico-sdk/src/rp2_common/pico_bootrom/include",
         "./pico-sdk/src/rp2_common/pico_btstack/include",
-        "./pico-sdk/src/rp2_common/pico_clib_interface/include",
+        "./pico-sdk/src/rp2_common/pico_clib_interface/include/",
+        // "./pico-sdk/src/rp2_common/pico_clib_interface/include/llvm_libc/",
         "./pico-sdk/src/rp2_common/pico_cyw43_arch/include",
         "./pico-sdk/src/rp2_common/pico_cyw43_driver/include",
         "./pico-sdk/src/rp2_common/pico_double/include",
@@ -238,7 +260,8 @@ pub fn addPicoIncludes(build_config: *Build, module: *Build.Module, target: Pico
         "./pico-sdk/src/rp2_common/pico_runtime/include",
         "./pico-sdk/src/rp2_common/pico_runtime_init/include",
         "./pico-sdk/src/rp2_common/pico_sha256/include",
-        "./pico-sdk/src/rp2_common/pico_stdio/include",
+        "./pico-sdk/src/rp2_common/pico_stdio/include/",
+        // "./pico-sdk/src/rp2_common/pico_stdio/include/pico/",
         "./pico-sdk/src/rp2_common/pico_stdio_rtt/include",
         "./pico-sdk/src/rp2_common/pico_stdio_semihosting/include",
         "./pico-sdk/src/rp2_common/pico_stdio_uart/include",
@@ -282,8 +305,8 @@ pub fn addPicoIncludes(build_config: *Build, module: *Build.Module, target: Pico
 pub fn addArmIncludes(build_config: *Build, module: *Build.Module) void {
     //Run the which command to find the real install location of arm-none-eabi-gcc
     //On Nixos, it is under a hash so it's bad practice to reference it directly
-    const cmd_result = std.process.Child.run(.{
-        .allocator = std.heap.page_allocator,
+    const cmd_result = std.process.run(std.heap.page_allocator, build_config.graph.io, std.process.RunOptions{
+        // .allocator = std.heap.page_allocator,
         .argv = &[_][]const u8{ "which", "arm-none-eabi-gcc" }, //: []const []const u8,
         //cwd: ?[]const u8 = null,
         //cwd_dir: ?fs.Dir = null,

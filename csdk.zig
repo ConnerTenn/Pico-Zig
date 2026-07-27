@@ -173,5 +173,5 @@ pub export fn gpioc_bit_oe_put(pin: c_uint, val: bool) void {
 }
 
 pub export fn __compiler_memory_barrier() void {
-    asm volatile ("" ::: "memory");
+    asm volatile ("" ::: .{ .memory = true });
 }

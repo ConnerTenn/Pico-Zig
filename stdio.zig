@@ -14,14 +14,17 @@ fn writeFn(context: *const anyopaque, bytes: []const u8) anyerror!usize {
 }
 
 pub fn print(comptime fmt: []const u8, args: anytype) void {
-    std.fmt.format(
-        std.io.AnyWriter{
-            .context = @ptrFromInt(std.math.maxInt(usize)), // Unused
-            .writeFn = writeFn,
-        },
-        fmt,
-        args,
-    ) catch {};
+    // std.fmt.format(
+    //     std.Io.Writer{
+    //         .context = @ptrFromInt(std.math.maxInt(usize)), // Unused
+    //         .writeFn = writeFn,
+    //     },
+    //     fmt,
+    //     args,
+    // ) catch {};
+    const print_buf = std.fmt.comptimePrint(fmt, args);
+    const len = csdk.stdio_put_string(print_buf.ptr, @intCast(print_buf.len), false, false);
+    _ = len;
 }
 
 pub fn warn(comptime fmt: []const u8, args: anytype) void {
